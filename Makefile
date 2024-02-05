@@ -7,6 +7,5 @@ main.o: main.cpp
 
 glad.o: glad.c
 	gcc -c glad.c
-
 clean:
 	rm -rf glad.o main.o main

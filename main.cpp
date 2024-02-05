@@ -1,6 +1,9 @@
+#include <cstddef>
+#include <cstdio>
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 #include <iostream>
+#include <string>
 #include <unordered_map>
 
 // Globals
@@ -25,31 +28,25 @@ void makeTriangle(unsigned int* vao, float offset);
 GLFWwindow* setupWindow();
 unsigned int setupShader(GLenum shaderType, const char* shaderSource);
 unsigned int setupShaderProgram(unsigned int vertexShader, unsigned int fragmentShader);
-
+bool getShaderSource(std::string* vertexShaderSource, const char* filename);
 
 int main() {
 	GLFWwindow* window = setupWindow();
 	if(!window) {
 		return 1;
 	}
-
-	const char *vertexShaderSource ="#version 330 core\n"
-	"layout (location = 0) in vec3 aPos;\n"
-    	"void main()\n"
-    	"{\n"
-    	"   gl_Position = vec4(aPos.x, aPos.y, aPos.z, 1.0);\n"
-    	"}\0";
 	
-	unsigned int vertexShader = setupShader(GL_VERTEX_SHADER, vertexShaderSource);
-	// Fragment Shader source code:
-	const char* fragmentShaderSource = "#version 330 core\n"
-	"out vec4 FragColor;\n"
-	"\n"
-	"void main()\n"
-	"{\n"
-	"    FragColor = vec4(1.0f, 0.5f, 0.2f, 1.0f);\n"
-	"}\n";
-	unsigned int fragmentShader = setupShader(GL_FRAGMENT_SHADER, fragmentShaderSource);
+	std::string vertexShaderSource, fragmentShaderSrc;
+	bool notHadError = getShaderSource(&vertexShaderSource,"vertexShader.glsl");
+	if(!notHadError) {
+		return 1;
+	}
+	unsigned int vertexShader = setupShader(GL_VERTEX_SHADER, vertexShaderSource.c_str());
+	notHadError = getShaderSource(&fragmentShaderSrc,"fragmentShader.glsl");
+	if(!notHadError) {
+		return 1;
+	}
+	unsigned int fragmentShader = setupShader(GL_FRAGMENT_SHADER, fragmentShaderSrc.c_str());
 	unsigned int shaderProgram = setupShaderProgram(vertexShader,fragmentShader);
 	glUseProgram(shaderProgram);
 	unsigned int VAO1;
@@ -83,6 +80,28 @@ int main() {
 	return 0;
 }
 
+bool getShaderSource(std::string* shaderSourceRef, const char* filename) {
+	FILE* fs = fopen(filename, "r");
+
+	char buf[512];
+
+	if(!fs) {
+		std::cout << "Error opening file: "<< filename;
+		return false;
+	}
+	
+	while(std::fgets(buf, 512, fs) != NULL) {
+		*shaderSourceRef += buf;
+	}
+
+	if(!std::feof(fs)) {
+		std::cout<<"ERROR when reading file!";
+		return false;
+	}
+	return true;
+}
+
+
 unsigned int setupShaderProgram(unsigned int vertexShader, unsigned int fragmentShader) {
 	unsigned int shaderProgram = glCreateProgram();
 	int success;
@@ -102,6 +121,7 @@ unsigned int setupShaderProgram(unsigned int vertexShader, unsigned int fragment
 unsigned int setupShader(GLenum shaderType,const char* shaderSource) {
 	unsigned int shader;
 	shader = glCreateShader(shaderType);
+	std::string shadersource2;
 	glShaderSource(shader,1, &shaderSource, NULL);
 	glCompileShader(shader);
 	int success;
