@@ -1,3 +1,4 @@
+#include <cmath>
 #include <cstddef>
 #include <cstdio>
 #include <glad/glad.h>
@@ -50,28 +51,31 @@ int main() {
 	unsigned int shaderProgram = setupShaderProgram(vertexShader,fragmentShader);
 	glUseProgram(shaderProgram);
 	unsigned int VAO1;
-	unsigned int VAO2;
 	makeTriangle(&VAO1, 0);
-	makeTriangle(&VAO2, 0.5);
-	
 
 	// RenderLoop:
 	while(!glfwWindowShouldClose(window)) {
+
+
 		// Handle any polled user inputs:
 		processInput(window);
 
 		// Rendering
 		glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT);
+		
+		// Activate shader program
+		glUseProgram(shaderProgram);
+
 
 		// draw shape.
-		glUseProgram(shaderProgram);
+		float timeValue = glfwGetTime();
+		float blueValue = (sin(timeValue)/2.0f) + 0.5f;
+		int vertexColorLocation = glGetUniformLocation(shaderProgram, "ourColor");
+		glUniform4f(vertexColorLocation, 0.0f, 0.0f, blueValue,1.0f);
+
 		glBindVertexArray(VAO1);
 		glDrawElements(GL_TRIANGLES, 3, GL_UNSIGNED_INT, 0);
-
-		glBindVertexArray(VAO2);
-		glDrawElements(GL_TRIANGLES, 3, GL_UNSIGNED_INT, 0);
-
 		// Swap the color buffer with the current buffer being displayed.
 		glfwSwapBuffers(window);
 		glfwPollEvents();
@@ -129,7 +133,7 @@ unsigned int setupShader(GLenum shaderType,const char* shaderSource) {
 	glGetShaderiv(shader, GL_COMPILE_STATUS, &success);
 	if(!success) {
 		glGetShaderInfoLog(shader, 512, NULL, infoLog);
-		printf("ERROR:SHADER:%s:VERTEX::COMPILATION_FAILED:\n%s\n", shaderName[shaderType], infoLog);
+		printf("ERROR:SHADER:%s:COMPILATION_FAILED:\n%s\n", shaderName[shaderType], infoLog);
 		return 0;
 	}
 	return shader;
@@ -168,16 +172,13 @@ GLFWwindow* setupWindow() {
 }
 
 void makeTriangle(unsigned int* vao, float offset) {
-	
+
 	float vertices[] = {
-	   -0.5f, -0.5f, 0.0f,
-           0.5f, -0.5f, 0.0f,
-           0.0f,  0.5f, 0.0f	
-	};
-	for(int i = 0; i < 3; i++) {
-		// add some offset to the x position:
-		vertices[i*3] += offset;
-	}
+	    // positions         // colors
+	     0.5f, -0.5f, 0.0f,  1.0f, 0.0f, 0.0f,   // bottom right
+	    -0.5f, -0.5f, 0.0f,  0.0f, 1.0f, 0.0f,   // bottom left
+	     0.0f,  0.5f, 0.0f,  0.0f, 0.0f, 1.0f    // top 
+	};    
 	
 	unsigned int indices[] = {  // note that we start from 0!
 	    0, 1, 2,   // first triangle
@@ -207,10 +208,12 @@ void makeTriangle(unsigned int* vao, float offset) {
 	// third_argument: What type of data are we sending? GL_FLOAT
 	// 4th arg: Is our data normalized? No
 	// 5th arg: 
-	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3*sizeof(float),(void*)0);
-	// Enable the 0th attribute we have stored using the VBO call above. The 0th position stores the starting position and potentially the stride of the attribute to the said VBO.
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6*sizeof(float),(void*)0);
 	glEnableVertexAttribArray(0);
 
+	// Similarly, set the attributes of the second index, which are the colors, and enable them.
+	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6*sizeof(float),(void*)(3*sizeof(float)));
+	glEnableVertexAttribArray(1);
 }
 
 void frameBufferSizeCallback(GLFWwindow* window, int width, int height) {
