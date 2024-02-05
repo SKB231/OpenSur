@@ -36,19 +36,22 @@ int main() {
 		return -1;
 	}
 		
+	/** 
+	* Set the size of the renderring window so OpenGL knows what area within our sized window it should render in.
+	* For our case, we render in all of it.	
+	*/
+	glViewport(0,0, 800, 600);
 
-	// Generate a buffer and assign the ID to VBO: Vertex Buffer Object.
-	unsigned int VBO;
-	glGenBuffers(1, &VBO);
-	
-	// Bind the GL_ARRAY_BUFFER with the VBO Buffer.
-	glBindBuffer(GL_ARRAY_BUFFER, VBO);
+	glfwSetFramebufferSizeCallback(window, frameBufferSizeCallback);
 
-	// Copies vertex data to buffer.
-	glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
 
-	const char *vertexShaderSource = "#version 330 core\nlayout (location = 0) in vec3 aPos;\nvoid main()\n{\n   gl_Position = vec4(aPos.x, aPos.y, aPos.z, 1.0);\n}\0";
 
+	const char *vertexShaderSource ="#version 330 core\n"
+	"layout (location = 0) in vec3 aPos;\n"
+    	"void main()\n"
+    	"{\n"
+    	"   gl_Position = vec4(aPos.x, aPos.y, aPos.z, 1.0);\n"
+    	"}\0";
 	unsigned int vertexShader;
 	vertexShader = glCreateShader(GL_VERTEX_SHADER);
 	glShaderSource(vertexShader,1, &vertexShaderSource, NULL);
@@ -90,14 +93,23 @@ int main() {
 		glGetShaderInfoLog(shaderProgram, 512, NULL, infoLog);
 		printf("ERROR:SHADER::PROGRAM_LINK::COMPILATION_FAILED: \n%s", infoLog);
 	}
-	else {
-		glUseProgram(shaderProgram);
-	}
-	// Delete individual shaders since attachment is complete
-	glDeleteShader(vertexShader);
-	glDeleteShader(fragmentShader);
 
+	glUseProgram(shaderProgram);
 	
+
+
+	unsigned int VAO, VBO;
+	glGenVertexArrays(1, &VAO);
+	// Generate a buffer and assign the ID to VBO: Vertex Buffer Object.
+	glGenBuffers(1, &VBO);
+
+	glBindVertexArray(VAO);
+	
+	// Bind the GL_ARRAY_BUFFER with the VBO Buffer.
+	glBindBuffer(GL_ARRAY_BUFFER, VBO);
+
+	// Copies vertex data to buffer we have just bound
+	glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
 	// Setup the vertex objects for our VBOs
 	// first_arg: Position we are assigning. We set it to 0 since we are assigning the aPos which is the 0th attribute.
 	// second_arg: How many components per vertex attribute.
@@ -105,32 +117,25 @@ int main() {
 	// 4th arg: Is our data normalized? No
 	// 5th arg: 
 	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3*sizeof(float),(void*)0);
-
-
-	/** 
-	* Set the size of the renderring window so OpenGL knows what area within our sized window it should render in.
-	* For our case, we render in all of it.	
-	*/
-	glViewport(0,0, 800, 600);
-
-	glfwSetFramebufferSizeCallback(window, frameBufferSizeCallback);
-	
+	// Enable the 0th attribute we have stored using the VBO call above. The 0th position stores the starting position and potentially the stride of the attribute to the said VBO.
+	glEnableVertexAttribArray(0);
 
 	// RenderLoop:
 	while(!glfwWindowShouldClose(window)) {
-
 		// Handle any polled user inputs:
 		processInput(window);
-
 
 		// Rendering
 		glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT);
 
+		// draw triangle
+		glUseProgram(shaderProgram);
+		glBindVertexArray(VAO);
+		glDrawArrays(GL_TRIANGLES, 0, 3);
+
 		// Swap the color buffer with the current buffer being displayed.
 		glfwSwapBuffers(window);
-
-		// Poll all the user events that have occured.
 		glfwPollEvents();
 	}
 	glfwTerminate();
