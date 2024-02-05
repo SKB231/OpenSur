@@ -1,3 +1,4 @@
+#include "shader.h"
 #include <cmath>
 #include <cstddef>
 #include <cstdio>
@@ -8,6 +9,8 @@
 #include <unordered_map>
 
 // Globals
+#ifndef GLOBALS
+#define GLOBALS
 int WIDTH = 800;
 int HEIGHT = 600;
 
@@ -16,11 +19,8 @@ enum ShaderType {
 	fragShader = GL_FRAGMENT_SHADER,
 };
 
-std::unordered_map<GLenum, const char*> shaderName = {
-	{GL_VERTEX_SHADER, "VERTEX_SHADER"},
-	{GL_FRAGMENT_SHADER, "FRAGMENT_SHADER"}, 
-};
 
+#endif // !GLOBALS
 // Function defintions
 
 void frameBufferSizeCallback(GLFWwindow* window,int width,int height);
@@ -37,19 +37,19 @@ int main() {
 		return 1;
 	}
 	
-	std::string vertexShaderSource, fragmentShaderSrc;
-	bool notHadError = getShaderSource(&vertexShaderSource,"vertexShader.glsl");
-	if(!notHadError) {
-		return 1;
-	}
-	unsigned int vertexShader = setupShader(GL_VERTEX_SHADER, vertexShaderSource.c_str());
-	notHadError = getShaderSource(&fragmentShaderSrc,"fragmentShader.glsl");
-	if(!notHadError) {
-		return 1;
-	}
-	unsigned int fragmentShader = setupShader(GL_FRAGMENT_SHADER, fragmentShaderSrc.c_str());
-	unsigned int shaderProgram = setupShaderProgram(vertexShader,fragmentShader);
-	glUseProgram(shaderProgram);
+	//std::string vertexShaderSource, fragmentShaderSrc;
+	//bool notHadError = getShaderSource(&vertexShaderSource,"vertexShader.glsl");
+	//if(!notHadError) {
+	//	return 1;
+	//}
+	//unsigned int vertexShader = setupShader(GL_VERTEX_SHADER, vertexShaderSource.c_str());
+	//notHadError = getShaderSource(&fragmentShaderSrc,"fragmentShader.glsl");
+	//if(!notHadError) {
+	//	return 1;
+	//}
+	//unsigned int fragmentShader = setupShader(GL_FRAGMENT_SHADER, fragmentShaderSrc.c_str());
+	//unsigned int shaderProgram = setupShaderProgram(vertexShader,fragmentShader);
+	Shader simpleShader("vertexShader.glsl", "fragmentShader.glsl");
 	unsigned int VAO1;
 	makeTriangle(&VAO1, 0);
 
@@ -65,14 +65,13 @@ int main() {
 		glClear(GL_COLOR_BUFFER_BIT);
 		
 		// Activate shader program
-		glUseProgram(shaderProgram);
+		simpleShader.use();
 
 
 		// draw shape.
 		float timeValue = glfwGetTime();
 		float blueValue = (sin(timeValue)/2.0f) + 0.5f;
-		int vertexColorLocation = glGetUniformLocation(shaderProgram, "ourColor");
-		glUniform4f(vertexColorLocation, 0.0f, 0.0f, blueValue,1.0f);
+		// int vertexColorLocation = glGetUniformLocation(shaderProgram, "ourColor");
 
 		glBindVertexArray(VAO1);
 		glDrawElements(GL_TRIANGLES, 3, GL_UNSIGNED_INT, 0);
@@ -84,60 +83,6 @@ int main() {
 	return 0;
 }
 
-bool getShaderSource(std::string* shaderSourceRef, const char* filename) {
-	FILE* fs = fopen(filename, "r");
-
-	char buf[512];
-
-	if(!fs) {
-		std::cout << "Error opening file: "<< filename;
-		return false;
-	}
-	
-	while(std::fgets(buf, 512, fs) != NULL) {
-		*shaderSourceRef += buf;
-	}
-
-	if(!std::feof(fs)) {
-		std::cout<<"ERROR when reading file!";
-		return false;
-	}
-	return true;
-}
-
-
-unsigned int setupShaderProgram(unsigned int vertexShader, unsigned int fragmentShader) {
-	unsigned int shaderProgram = glCreateProgram();
-	int success;
-	char* infoLog;
-	glAttachShader(shaderProgram, vertexShader);
-	glAttachShader(shaderProgram, fragmentShader);
-	glLinkProgram(shaderProgram);
-	glGetProgramiv(shaderProgram, GL_LINK_STATUS, &success);
-	if(!success) {
-		glGetShaderInfoLog(shaderProgram, 512, NULL, infoLog);
-		std::cout<<"ERROR:SHADER::PROGRAM_LINK::COMPILATION_FAILED: \n%s"<< infoLog;
-		return 0;
-	}
-	return shaderProgram;
-}
-
-unsigned int setupShader(GLenum shaderType,const char* shaderSource) {
-	unsigned int shader;
-	shader = glCreateShader(shaderType);
-	std::string shadersource2;
-	glShaderSource(shader,1, &shaderSource, NULL);
-	glCompileShader(shader);
-	int success;
-	char infoLog[512];
-	glGetShaderiv(shader, GL_COMPILE_STATUS, &success);
-	if(!success) {
-		glGetShaderInfoLog(shader, 512, NULL, infoLog);
-		printf("ERROR:SHADER:%s:COMPILATION_FAILED:\n%s\n", shaderName[shaderType], infoLog);
-		return 0;
-	}
-	return shader;
-}
 
 GLFWwindow* setupWindow() {
 	glfwInit();
