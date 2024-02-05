@@ -31,6 +31,7 @@ GLFWwindow* setupWindow();
 unsigned int setupShader(GLenum shaderType, const char* shaderSource);
 unsigned int setupShaderProgram(unsigned int vertexShader, unsigned int fragmentShader);
 bool getShaderSource(std::string* vertexShaderSource, const char* filename);
+unsigned int loadAndSetupImage(const char* imageName, bool containsAlpha);
 
 int main() {
 	GLFWwindow* window = setupWindow();
@@ -46,6 +47,7 @@ int main() {
 	unsigned int texture;	
 	glGenTextures(1, &texture);
 	glBindTexture(GL_TEXTURE_2D, texture);
+
 
 	// set the texture wrapping/filtering options (on the currently bound texture object)
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);	
@@ -63,10 +65,15 @@ int main() {
 
 	stbi_image_free(data);
 
+	unsigned int texture2 = loadAndSetupImage("awesomeface.png", true);
 
 	Shader simpleShader("vertexShader.glsl", "fragmentShader.glsl");
 	unsigned int VAO1;
 	makeTriangle(&VAO1, 0);
+	
+	simpleShader.use();
+	simpleShader.setInt("texture1", 0);
+	simpleShader.setInt("texture2", 1);
 
 	// RenderLoop:
 	while(!glfwWindowShouldClose(window)) {
@@ -88,7 +95,13 @@ int main() {
 		float blueValue = (sin(timeValue)/2.0f) + 0.5f;
 		// int vertexColorLocation = glGetUniformLocation(shaderProgram, "ourColor");
 
+
+		glActiveTexture(GL_TEXTURE0);
 		glBindTexture(GL_TEXTURE_2D, texture);
+
+		glActiveTexture(GL_TEXTURE1);
+		glBindTexture(GL_TEXTURE_2D, texture2);
+
 		glBindVertexArray(VAO1);
 		glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 		// Swap the color buffer with the current buffer being displayed.
@@ -99,6 +112,36 @@ int main() {
 	return 0;
 }
 
+// This function loads the image using the stb library, and binds it to a newly created texture object. Then, it uses GL to generate mipmap after setting up the GL-parameters
+unsigned int loadAndSetupImage(const char* imageName, bool containsAlpha) {
+	unsigned int texture;
+	glGenTextures(1, &texture);
+	glBindTexture(GL_TEXTURE_2D, texture);
+	
+	int width, height, nrChannel; 
+	// nr channel: color channel length
+	// 0: R Channel I think?
+	stbi_set_flip_vertically_on_load(true);
+	unsigned char *data = stbi_load(imageName, &width, &height, &nrChannel, 0);
+	if (!data) {
+		std::cout << "Error loading up the image!";
+		return 0;
+	} 
+
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, containsAlpha ? GL_RGBA: GL_RGB , GL_UNSIGNED_BYTE, data);
+	glGenerateMipmap(GL_TEXTURE_2D);
+	
+	// set the texture wrapping/filtering options (on the currently bound texture object)
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);	
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glBindTexture(GL_TEXTURE_2D, 0);
+
+	stbi_image_free(data);
+	return texture;
+
+}
 
 GLFWwindow* setupWindow() {
 	glfwInit();
