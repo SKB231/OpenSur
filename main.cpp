@@ -6,7 +6,8 @@
 #include <GLFW/glfw3.h>
 #include <iostream>
 #include <string>
-#include <unordered_map>
+#define STB_IMAGE_IMPLEMENTATION
+#include "stb_image.h"
 
 // Globals
 #ifndef GLOBALS
@@ -37,18 +38,32 @@ int main() {
 		return 1;
 	}
 	
-	//std::string vertexShaderSource, fragmentShaderSrc;
-	//bool notHadError = getShaderSource(&vertexShaderSource,"vertexShader.glsl");
-	//if(!notHadError) {
-	//	return 1;
-	//}
-	//unsigned int vertexShader = setupShader(GL_VERTEX_SHADER, vertexShaderSource.c_str());
-	//notHadError = getShaderSource(&fragmentShaderSrc,"fragmentShader.glsl");
-	//if(!notHadError) {
-	//	return 1;
-	//}
-	//unsigned int fragmentShader = setupShader(GL_FRAGMENT_SHADER, fragmentShaderSrc.c_str());
-	//unsigned int shaderProgram = setupShaderProgram(vertexShader,fragmentShader);
+	int width, height, nrChannel; 
+
+	// nr channel: color channel length
+	// 0: R Channel I think?
+	unsigned char *data = stbi_load("container.jpg", &width, &height, &nrChannel, 0);
+	unsigned int texture;	
+	glGenTextures(1, &texture);
+	glBindTexture(GL_TEXTURE_2D, texture);
+
+	// set the texture wrapping/filtering options (on the currently bound texture object)
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);	
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+	if(data) {
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
+		glGenerateMipmap(GL_TEXTURE_2D);
+	} else {
+		std::cout << "Failed to load image data"; 
+	}
+
+
+	stbi_image_free(data);
+
+
 	Shader simpleShader("vertexShader.glsl", "fragmentShader.glsl");
 	unsigned int VAO1;
 	makeTriangle(&VAO1, 0);
@@ -73,8 +88,9 @@ int main() {
 		float blueValue = (sin(timeValue)/2.0f) + 0.5f;
 		// int vertexColorLocation = glGetUniformLocation(shaderProgram, "ourColor");
 
+		glBindTexture(GL_TEXTURE_2D, texture);
 		glBindVertexArray(VAO1);
-		glDrawElements(GL_TRIANGLES, 3, GL_UNSIGNED_INT, 0);
+		glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 		// Swap the color buffer with the current buffer being displayed.
 		glfwSwapBuffers(window);
 		glfwPollEvents();
@@ -117,17 +133,20 @@ GLFWwindow* setupWindow() {
 }
 
 void makeTriangle(unsigned int* vao, float offset) {
+	// set up vertex data (and buffer(s)) and configure vertex attributes
+	// ------------------------------------------------------------------
+    	float vertices[] = {
+    	    // positions          // colors           // texture coords
+    	     0.5f,  0.5f, 0.0f,   1.0f, 0.0f, 0.0f,   1.0f, 1.0f, // top right
+    	     0.5f, -0.5f, 0.0f,   0.0f, 1.0f, 0.0f,   1.0f, 0.0f, // bottom right
+    	    -0.5f, -0.5f, 0.0f,   0.0f, 0.0f, 1.0f,   0.0f, 0.0f, // bottom left
+    	    -0.5f,  0.5f, 0.0f,   1.0f, 1.0f, 0.0f,   0.0f, 1.0f  // top left 
+    	};
+    	unsigned int indices[] = {  
+    	    0, 1, 3, // first triangle
+    	    1, 2, 3  // second triangle
+    	};
 
-	float vertices[] = {
-	    // positions         // colors
-	     0.5f, -0.5f, 0.0f,  1.0f, 0.0f, 0.0f,   // bottom right
-	    -0.5f, -0.5f, 0.0f,  0.0f, 1.0f, 0.0f,   // bottom left
-	     0.0f,  0.5f, 0.0f,  0.0f, 0.0f, 1.0f    // top 
-	};    
-	
-	unsigned int indices[] = {  // note that we start from 0!
-	    0, 1, 2,   // first triangle
-	}; 
 	unsigned VBO;
 	glGenVertexArrays(1, vao);
 	glBindVertexArray(*vao);
@@ -153,12 +172,17 @@ void makeTriangle(unsigned int* vao, float offset) {
 	// third_argument: What type of data are we sending? GL_FLOAT
 	// 4th arg: Is our data normalized? No
 	// 5th arg: 
-	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6*sizeof(float),(void*)0);
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8*sizeof(float),(void*)0);
 	glEnableVertexAttribArray(0);
 
 	// Similarly, set the attributes of the second index, which are the colors, and enable them.
-	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6*sizeof(float),(void*)(3*sizeof(float)));
+	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8*sizeof(float),(void*)(3*sizeof(float)));
 	glEnableVertexAttribArray(1);
+
+
+	// Lastly, set the texture coordinate data:
+	glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8*sizeof(float),(void*)(6*sizeof(float)));
+	glEnableVertexAttribArray(2);
 }
 
 void frameBufferSizeCallback(GLFWwindow* window, int width, int height) {

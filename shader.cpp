@@ -19,7 +19,6 @@ Shader :: Shader(const char* vertexPath, const char* fragmentPath) {
 
 	// Vertex Shader
 	bool notHadError = getShaderSource(&vertexShaderSource,"vertexShader.glsl");
-	std::cout<<"DEBUG\n"<< vertexShaderSource<<std::endl;
 	if(!notHadError) {
 		return;
 	}
