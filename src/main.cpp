@@ -1,5 +1,5 @@
-#include "include/glad/glad.h"
-#include "shader.h"
+#include <glad/glad.h>
+#include <shader/shader.h>
 #include <GLFW/glfw3.h>
 #include <cmath>
 #include <cstddef>
@@ -13,7 +13,7 @@
 #include <iostream>
 #include <string>
 #define STB_IMAGE_IMPLEMENTATION
-#include "stb_image.h"
+#include <stb_image/stb_image.h>
 
 // Globals
 #ifndef GLOBALS
