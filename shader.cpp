@@ -4,6 +4,8 @@
 #include <sstream>
 #include "shader.h"
 #include <unordered_map>
+#include <glm/glm.hpp>
+#include <glm/gtc/type_ptr.hpp>
 // Globals
 #ifndef GLOBALS
 #define GLOBALS
@@ -14,7 +16,7 @@ std::unordered_map<GLenum, const char*> shaderName = {
 
 #endif // !GLOBALS
 
-Shader :: Shader(const char* vertexPath, const char* fragmentPath) {
+Shader :: Shader(const std::string& vertexPath, const std::string& fragmentPath) {
 	std::string vertexShaderSource, fragmentShaderSrc;
 
 	// Vertex Shader
@@ -22,13 +24,13 @@ Shader :: Shader(const char* vertexPath, const char* fragmentPath) {
 	if(!notHadError) {
 		return;
 	}
-	unsigned int vertexShader = setupShader(GL_VERTEX_SHADER, vertexShaderSource.c_str());
+	unsigned int vertexShader = setupShader(GL_VERTEX_SHADER, vertexShaderSource);
 	// Fragment Shader
 	notHadError = getShaderSource(&fragmentShaderSrc,"fragmentShader.glsl");
 	if(!notHadError) {
 		return;
 	}
-	unsigned int fragmentShader = setupShader(GL_FRAGMENT_SHADER, fragmentShaderSrc.c_str());
+	unsigned int fragmentShader = setupShader(GL_FRAGMENT_SHADER, fragmentShaderSrc);
 	if(!vertexShader || !fragmentShader) {
 		return;
 	}
@@ -39,7 +41,7 @@ Shader :: Shader(const char* vertexPath, const char* fragmentPath) {
 	}
 	ID = shaderProgram;
 	
-	// Clean the shader code
+	// Shaders have been attahced to the program. They're are free to be deleted.
 	glDeleteShader(vertexShader);
 	glDeleteShader(fragmentShader);
 }
@@ -72,8 +74,13 @@ void Shader::setVec4(const std::string &name, std::vector<float> value) const
 	glUniform4f(glGetUniformLocation(ID, name.c_str()), value[0], value[1], value[2], value[3]); 
 } 
 
+void Shader::setMatrix(const std::string &name, glm::mat4 matrix) const
+{ 
+	
+	glad_glUniformMatrix4fv(glGetUniformLocation(ID, name.c_str()), 1, GL_FALSE, glm::value_ptr(matrix)); 
+} 
 
-bool Shader :: getShaderSource(std::string* shaderSourceRef, const char* filename) {
+bool Shader :: getShaderSource(std::string* shaderSourceRef, const std::string& filename) {
 	std::ifstream shaderCodeFile;
 	// These are differnet error bits in the format of one-hot encoding. So we can safely use the OR operation here.
 	shaderCodeFile.exceptions(std::ifstream::failbit | std::ifstream::badbit);
@@ -110,11 +117,11 @@ unsigned int Shader:: setupShaderProgram(unsigned int vertexShader, unsigned int
 	return shaderProgram;
 }
 
-unsigned int Shader:: setupShader(GLenum shaderType,const char* shaderSource) {
+unsigned int Shader:: setupShader(GLenum shaderType,const std::string& shaderSource) {
 	unsigned int shader;
 	shader = glCreateShader(shaderType);
-	std::string shadersource2;
-	glShaderSource(shader,1, &shaderSource, NULL);
+	const char* shaderSourceChar = shaderSource.c_str();
+	glShaderSource(shader,1, &shaderSourceChar, NULL);
 	glCompileShader(shader);
 	int success;
 	char infoLog[512];
