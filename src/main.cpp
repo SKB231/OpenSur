@@ -20,6 +20,8 @@
 #include <imgui/backends/imgui_impl_opengl3.h>
 #include <imgui/imgui.h>
 #include <stb_image/stb_image.h>
+using std::cout;
+using std::endl;
 
 // Globals
 #ifndef GLOBALS
@@ -92,18 +94,25 @@ int main() {
 
   lightingShader.setVec3("lightColor", {1.0f, 1.0f, 1.0f});
   lightingShader.setVec3("material.ambient", {1.0f, 0.5f, 0.31f});
-  lightingShader.setVec3("material.diffuse", {1.0f, 0.5f, 0.31f});
-  lightingShader.setVec3("material.specular", {0.5f, 0.5f, 0.5f});
+  // lightingShader.setVec3("material.specular", {0.0f, 0.0f, 0.0f});
   lightingShader.setFloat("material.shininess", 32.0f);
-
   lightingShader.setVec3("lightColor", {1.0f, 1.0f, 1.0f});
-  lightingShader.setVec3("light.position",
-                         {lightPos[0], lightPos[1], lightPos[2]});
+  // lightingShader.setVec3("light.position",
+  //                        {lightPos[0], lightPos[1], lightPos[2]});
+  lightingShader.setVec3("light.direction", {-0.2f, -1.0f, -0.3f});
 
   lightingShader.setVec3("light.ambient", {0.2f, 0.2f, 0.2f});
   lightingShader.setVec3("light.diffuse",
                          {0.5f, 0.5f, 0.5f}); // darken diffuse light a bit
   lightingShader.setVec3("light.specular", {1.0f, 1.0f, 1.0f});
+
+  lightingShader.setInt("material.diffuseMap", 0);
+  glActiveTexture(GL_TEXTURE0);
+  unsigned int diffuseMap = loadAndSetupImage("container2.png", true);
+
+  lightingShader.setInt("material.specularMap", 1);
+  glActiveTexture(GL_TEXTURE1);
+  unsigned int specularMap = loadAndSetupImage("container2_specular.png", true);
 
   Camera::InitCallbacks(window);
 
@@ -173,14 +182,20 @@ int main() {
     simpleShader.setMatrix("model", modelLight);
     glDrawArrays(GL_TRIANGLES, 0, 36);
 
-    // Draw the regular cube: Update camera information, and model Matrix
-    lightingShader.use();
-    glBindVertexArray(VAO2); // setup a light VAO object
-    lightingShader.setMatrix("view", activeCamera->view);
-    lightingShader.setMatrix("projection", activeCamera->projection);
-    glm::mat4 model = glm::mat4(1.0f);
-    lightingShader.setMatrix("model", model);
-    glDrawArrays(GL_TRIANGLES, 0, 36);
+    for (int i = 0; i < 10; i++) {
+      // Draw the regular cube: Update camera information, and model Matrix
+      lightingShader.use();
+      glBindVertexArray(VAO2); // setup a light VAO object
+      lightingShader.setMatrix("view", activeCamera->view);
+      lightingShader.setMatrix("projection", activeCamera->projection);
+      float angle = i * 20.0f;
+      glm::mat4 model = glm::mat4(1.0f);
+      glm::mat4 translated = glm::translate(model, cubePositions[i]);
+      lightingShader.setMatrix(
+          "model", glm::rotate(translated, angle, glm::vec3(1, 0.3f, .5f)));
+
+      glDrawArrays(GL_TRIANGLES, 0, 36);
+    }
 
     // Render Imgui window
     ImGui::Render();
@@ -236,7 +251,6 @@ unsigned int loadAndSetupImage(const char *imageName, bool containsAlpha) {
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER,
                   GL_LINEAR_MIPMAP_LINEAR);
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-  glBindTexture(GL_TEXTURE_2D, 0);
 
   stbi_image_free(data);
   return texture;
@@ -282,35 +296,43 @@ void makeCube(unsigned int *vao) {
   // set up vertex data (and buffer(s)) and configure vertex attributes
   // ------------------------------------------------------------------
   float vertices[] = {
-      -0.5f, -0.5f, -0.5f, 0.0f,  0.0f,  -1.0f, 0.5f,  -0.5f, -0.5f,
-      0.0f,  0.0f,  -1.0f, 0.5f,  0.5f,  -0.5f, 0.0f,  0.0f,  -1.0f,
-      0.5f,  0.5f,  -0.5f, 0.0f,  0.0f,  -1.0f, -0.5f, 0.5f,  -0.5f,
-      0.0f,  0.0f,  -1.0f, -0.5f, -0.5f, -0.5f, 0.0f,  0.0f,  -1.0f,
+      // positions          // normals           // texture coords
+      -0.5f, -0.5f, -0.5f, 0.0f,  0.0f,  -1.0f, 0.0f,  0.0f,  0.5f,  -0.5f,
+      -0.5f, 0.0f,  0.0f,  -1.0f, 1.0f,  0.0f,  0.5f,  0.5f,  -0.5f, 0.0f,
+      0.0f,  -1.0f, 1.0f,  1.0f,  0.5f,  0.5f,  -0.5f, 0.0f,  0.0f,  -1.0f,
+      1.0f,  1.0f,  -0.5f, 0.5f,  -0.5f, 0.0f,  0.0f,  -1.0f, 0.0f,  1.0f,
+      -0.5f, -0.5f, -0.5f, 0.0f,  0.0f,  -1.0f, 0.0f,  0.0f,
 
-      -0.5f, -0.5f, 0.5f,  0.0f,  0.0f,  1.0f,  0.5f,  -0.5f, 0.5f,
-      0.0f,  0.0f,  1.0f,  0.5f,  0.5f,  0.5f,  0.0f,  0.0f,  1.0f,
-      0.5f,  0.5f,  0.5f,  0.0f,  0.0f,  1.0f,  -0.5f, 0.5f,  0.5f,
-      0.0f,  0.0f,  1.0f,  -0.5f, -0.5f, 0.5f,  0.0f,  0.0f,  1.0f,
+      -0.5f, -0.5f, 0.5f,  0.0f,  0.0f,  1.0f,  0.0f,  0.0f,  0.5f,  -0.5f,
+      0.5f,  0.0f,  0.0f,  1.0f,  1.0f,  0.0f,  0.5f,  0.5f,  0.5f,  0.0f,
+      0.0f,  1.0f,  1.0f,  1.0f,  0.5f,  0.5f,  0.5f,  0.0f,  0.0f,  1.0f,
+      1.0f,  1.0f,  -0.5f, 0.5f,  0.5f,  0.0f,  0.0f,  1.0f,  0.0f,  1.0f,
+      -0.5f, -0.5f, 0.5f,  0.0f,  0.0f,  1.0f,  0.0f,  0.0f,
 
-      -0.5f, 0.5f,  0.5f,  -1.0f, 0.0f,  0.0f,  -0.5f, 0.5f,  -0.5f,
-      -1.0f, 0.0f,  0.0f,  -0.5f, -0.5f, -0.5f, -1.0f, 0.0f,  0.0f,
-      -0.5f, -0.5f, -0.5f, -1.0f, 0.0f,  0.0f,  -0.5f, -0.5f, 0.5f,
-      -1.0f, 0.0f,  0.0f,  -0.5f, 0.5f,  0.5f,  -1.0f, 0.0f,  0.0f,
+      -0.5f, 0.5f,  0.5f,  -1.0f, 0.0f,  0.0f,  1.0f,  0.0f,  -0.5f, 0.5f,
+      -0.5f, -1.0f, 0.0f,  0.0f,  1.0f,  1.0f,  -0.5f, -0.5f, -0.5f, -1.0f,
+      0.0f,  0.0f,  0.0f,  1.0f,  -0.5f, -0.5f, -0.5f, -1.0f, 0.0f,  0.0f,
+      0.0f,  1.0f,  -0.5f, -0.5f, 0.5f,  -1.0f, 0.0f,  0.0f,  0.0f,  0.0f,
+      -0.5f, 0.5f,  0.5f,  -1.0f, 0.0f,  0.0f,  1.0f,  0.0f,
 
-      0.5f,  0.5f,  0.5f,  1.0f,  0.0f,  0.0f,  0.5f,  0.5f,  -0.5f,
-      1.0f,  0.0f,  0.0f,  0.5f,  -0.5f, -0.5f, 1.0f,  0.0f,  0.0f,
-      0.5f,  -0.5f, -0.5f, 1.0f,  0.0f,  0.0f,  0.5f,  -0.5f, 0.5f,
-      1.0f,  0.0f,  0.0f,  0.5f,  0.5f,  0.5f,  1.0f,  0.0f,  0.0f,
+      0.5f,  0.5f,  0.5f,  1.0f,  0.0f,  0.0f,  1.0f,  0.0f,  0.5f,  0.5f,
+      -0.5f, 1.0f,  0.0f,  0.0f,  1.0f,  1.0f,  0.5f,  -0.5f, -0.5f, 1.0f,
+      0.0f,  0.0f,  0.0f,  1.0f,  0.5f,  -0.5f, -0.5f, 1.0f,  0.0f,  0.0f,
+      0.0f,  1.0f,  0.5f,  -0.5f, 0.5f,  1.0f,  0.0f,  0.0f,  0.0f,  0.0f,
+      0.5f,  0.5f,  0.5f,  1.0f,  0.0f,  0.0f,  1.0f,  0.0f,
 
-      -0.5f, -0.5f, -0.5f, 0.0f,  -1.0f, 0.0f,  0.5f,  -0.5f, -0.5f,
-      0.0f,  -1.0f, 0.0f,  0.5f,  -0.5f, 0.5f,  0.0f,  -1.0f, 0.0f,
-      0.5f,  -0.5f, 0.5f,  0.0f,  -1.0f, 0.0f,  -0.5f, -0.5f, 0.5f,
-      0.0f,  -1.0f, 0.0f,  -0.5f, -0.5f, -0.5f, 0.0f,  -1.0f, 0.0f,
+      -0.5f, -0.5f, -0.5f, 0.0f,  -1.0f, 0.0f,  0.0f,  1.0f,  0.5f,  -0.5f,
+      -0.5f, 0.0f,  -1.0f, 0.0f,  1.0f,  1.0f,  0.5f,  -0.5f, 0.5f,  0.0f,
+      -1.0f, 0.0f,  1.0f,  0.0f,  0.5f,  -0.5f, 0.5f,  0.0f,  -1.0f, 0.0f,
+      1.0f,  0.0f,  -0.5f, -0.5f, 0.5f,  0.0f,  -1.0f, 0.0f,  0.0f,  0.0f,
+      -0.5f, -0.5f, -0.5f, 0.0f,  -1.0f, 0.0f,  0.0f,  1.0f,
 
-      -0.5f, 0.5f,  -0.5f, 0.0f,  1.0f,  0.0f,  0.5f,  0.5f,  -0.5f,
-      0.0f,  1.0f,  0.0f,  0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,
-      0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,  -0.5f, 0.5f,  0.5f,
-      0.0f,  1.0f,  0.0f,  -0.5f, 0.5f,  -0.5f, 0.0f,  1.0f,  0.0f};
+      -0.5f, 0.5f,  -0.5f, 0.0f,  1.0f,  0.0f,  0.0f,  1.0f,  0.5f,  0.5f,
+      -0.5f, 0.0f,  1.0f,  0.0f,  1.0f,  1.0f,  0.5f,  0.5f,  0.5f,  0.0f,
+      1.0f,  0.0f,  1.0f,  0.0f,  0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,
+      1.0f,  0.0f,  -0.5f, 0.5f,  0.5f,  0.0f,  1.0f,  0.0f,  0.0f,  0.0f,
+      -0.5f, 0.5f,  -0.5f, 0.0f,  1.0f,  0.0f,  0.0f,  1.0f};
+
   unsigned VBO;
   glGenVertexArrays(1, vao);
   glBindVertexArray(*vao);
@@ -334,14 +356,18 @@ void makeCube(unsigned int *vao) {
   // first_arg: Position we are assigning. We set it to 0 since we are assigning
   // the position attribute which is the 0th attribute. second_arg: How many
   // components per vertex attribute.
-  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void *)0);
+  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void *)0);
   glEnableVertexAttribArray(0);
-
   // Similarly, set the attributes of the second index, which are the colors,
   // and enable them.
-  glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float),
+  glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float),
                         (void *)(3 * sizeof(float)));
+  // Lastly, set the attributes of the third index, which are the texture
+  // coordinates.
   glEnableVertexAttribArray(1);
+  glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float),
+                        (void *)(6 * sizeof(float)));
+  glEnableVertexAttribArray(2);
 }
 
 void processInput(GLFWwindow *window) {
@@ -375,4 +401,6 @@ void frameBufferSizeCallback(GLFWwindow *window, int width, int height) {
   int fwidth, fheight;
   glfwGetFramebufferSize(window, &fwidth, &fheight);
   glViewport(0, 0, fwidth, fheight);
+  WIDTH = fwidth;
+  HEIGHT = fheight;
 }

@@ -6,6 +6,9 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/trigonometric.hpp>
 #include <imgui/imgui.h>
+#include <iostream>
+using std::cout;
+using std::endl;
 
 extern int WIDTH, HEIGHT;
 extern bool enableControl;
@@ -22,9 +25,9 @@ void Camera::UpdateCamera() {
   direction.z = sin(glm::radians(yaw)) * cos(glm::radians(pitch));
   cameraFront = glm::normalize(direction);
   view = glm::lookAt(cameraPos, cameraPos + cameraFront, cameraUp);
-  projection = glm::perspective(glm::radians(fov), 800 / 600.0f, 0.1f, 1000.0f);
+  projection =
+      glm::perspective(glm::radians(fov), float(WIDTH) / HEIGHT, 0.1f, 1000.0f);
 }
-#include <iostream>
 void Camera::KeyInput(GLFWwindow *window) {
   if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
     cameraPos += cameraSpeed * cameraFront;
