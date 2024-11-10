@@ -96,6 +96,8 @@ void Camera::DisplayCameraProperties() {
   ImGui::Text("Yaw: %f", yaw);
   ImGui::Text("Position (XYZ) { %.3f %.3f %.3f }", cameraPos.x, cameraPos.y,
               cameraPos.z);
+  ImGui::Text("CameraFront (XYZ) { %.3f %.3f %.3f }", cameraFront.x,
+              cameraFront.y, cameraFront.z);
   // ImGui::Text("Pitch: ", pitch);
   ImGui::End();
 }

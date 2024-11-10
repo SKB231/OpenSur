@@ -13,8 +13,8 @@ inline std::unique_ptr<Camera> activeCamera;
 
 class Camera {
 public:
-  float pitch = -30, yaw = -160, fov = 45.0f;
-  float cameraSpeed = 0.1f;
+  float pitch = -30, yaw = -160, fov = 90.0f;
+  float cameraSpeed = 0.01f;
   glm::vec3 cameraPos = glm::vec3(5.0f, 3.0f, 3.0f);
   glm::vec3 cameraFront = glm::vec3(.0f, .0f, -1.0f);
   glm::vec3 cameraUp = glm::vec3(.0f, 1.0f, 0.0f);
