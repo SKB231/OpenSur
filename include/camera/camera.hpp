@@ -1,11 +1,11 @@
 #ifndef CAMERA_H
 #define CAMERA_H
 
-#include <shader/shader.hpp>
+#define GLFW_INCLUDE_NONE
 #include <GLFW/glfw3.h>
 #include <glm/glm.hpp>
 #include <memory>
-
+#include <shader/shader.hpp>
 class Camera;
 inline float lastX;
 inline float lastY;
@@ -13,9 +13,9 @@ inline std::unique_ptr<Camera> activeCamera;
 
 class Camera {
 public:
-  float pitch = -130.0f, yaw = -40, fov = 45.0f;
+  float pitch = -30, yaw = -160, fov = 45.0f;
   float cameraSpeed = 0.1f;
-  glm::vec3 cameraPos = glm::vec3(3.0f, 3.0f, 3.0f);
+  glm::vec3 cameraPos = glm::vec3(5.0f, 3.0f, 3.0f);
   glm::vec3 cameraFront = glm::vec3(.0f, .0f, -1.0f);
   glm::vec3 cameraUp = glm::vec3(.0f, 1.0f, 0.0f);
   glm::vec3 direction;
@@ -28,6 +28,7 @@ public:
   static void ScrollCallback(GLFWwindow *window, double xpos, double ypos);
   void UpdateCamera();
   void KeyInput(GLFWwindow *window);
+  void DisplayCameraProperties();
 };
 
 #endif

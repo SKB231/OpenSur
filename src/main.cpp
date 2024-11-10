@@ -1,5 +1,6 @@
+#define GLFW_INCLUDE_NONE
+#include <GLFW/glfw3.h>
 #include <camera/camera.hpp>
-#include<iostream>
 #include <cmath>
 #include <cstddef>
 #include <cstdio>
@@ -15,18 +16,27 @@
 #include <shader/shader.hpp>
 #include <string>
 #define STB_IMAGE_IMPLEMENTATION
+#include <imgui/backends/imgui_impl_glfw.h>
+#include <imgui/backends/imgui_impl_opengl3.h>
+#include <imgui/imgui.h>
 #include <stb_image/stb_image.h>
 
 // Globals
 #ifndef GLOBALS
 #define GLOBALS
-int WIDTH = 800;
-int HEIGHT = 600;
+bool show_demo_window = false;
+int WIDTH = 1000;
+int HEIGHT = 1000;
+const char *glsl_version = "#version 150";
 float fov = 45.0;
 float lastTime = 0.0f;
 float deltaTime = 1.0f;
 bool firstMouse = true;
 glm::vec3 lightPos(1.2f, 1.0f, 2.0f);
+
+bool enableControl = true;
+bool displayCursor = false;
+bool displayingCursor = false;
 
 extern std::unique_ptr<Camera> activeCamera;
 
@@ -56,11 +66,14 @@ bool getShaderSource(std::string *vertexShaderSource, const char *filename);
 unsigned int loadAndSetupImage(const char *imageName, bool containsAlpha);
 
 int main() {
+
   // setup window
   GLFWwindow *window = setupWindow();
+
   if (!window) {
     return 1;
   }
+
   activeCamera = std::make_unique<Camera>(window);
   glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 
@@ -76,17 +89,60 @@ int main() {
 
   glEnable(GL_DEPTH_TEST);
   lightingShader.use();
-  lightingShader.setVec3("objectColor", {1.0f, 0.5f, 0.31f});
-  lightingShader.setVec3("lightColor",  {1.0f, 1.0f, 1.0f});
-  lightingShader.setVec3("lightPos", {lightPos[0], lightPos[1], lightPos[2]});
+
+  lightingShader.setVec3("lightColor", {1.0f, 1.0f, 1.0f});
+  lightingShader.setVec3("material.ambient", {1.0f, 0.5f, 0.31f});
+  lightingShader.setVec3("material.diffuse", {1.0f, 0.5f, 0.31f});
+  lightingShader.setVec3("material.specular", {0.5f, 0.5f, 0.5f});
+  lightingShader.setFloat("material.shininess", 32.0f);
+
+  lightingShader.setVec3("lightColor", {1.0f, 1.0f, 1.0f});
+  lightingShader.setVec3("light.position",
+                         {lightPos[0], lightPos[1], lightPos[2]});
+
+  lightingShader.setVec3("light.ambient", {0.2f, 0.2f, 0.2f});
+  lightingShader.setVec3("light.diffuse",
+                         {0.5f, 0.5f, 0.5f}); // darken diffuse light a bit
+  lightingShader.setVec3("light.specular", {1.0f, 1.0f, 1.0f});
+
   Camera::InitCallbacks(window);
 
+  // Imgui Context init:
+  IMGUI_CHECKVERSION();
+  ImGui::CreateContext();
+  ImGuiIO &io = ImGui::GetIO();
+  (void)io;
+  io.ConfigFlags |=
+      ImGuiConfigFlags_NavEnableKeyboard; // Enable Keyboard Controls
+  io.ConfigFlags |=
+      ImGuiConfigFlags_NavEnableGamepad;             // Enable Gamepad Controls
+  io.ConfigFlags &= !ImGuiConfigFlags_DockingEnable; // Enable Docking
+  io.ConfigFlags &=
+      !ImGuiConfigFlags_ViewportsEnable; // Enable Multi-Viewport /
+
+  // Setup Platform/Renderer backends
+  ImGui_ImplGlfw_InitForOpenGL(window, true);
+#ifdef __EMSCRIPTEN__
+  ImGui_ImplGlfw_InstallEmscriptenCallbacks(window, "#canvas");
+#endif
+  ImGui_ImplOpenGL3_Init(glsl_version);
   // RenderLoop:
   while (!glfwWindowShouldClose(window)) {
 
     // Handle any polled user inputs:
     processInput(window);
 
+    ImGui_ImplOpenGL3_NewFrame();
+    ImGui_ImplGlfw_NewFrame();
+    ImGui::NewFrame();
+
+    // 1. Show the big demo window (Most of the sample code is in
+    // ImGui::ShowDemoWindow()! You can browse its code to learn more about Dear
+    // ImGui!).
+    if (show_demo_window)
+      ImGui::ShowDemoWindow(&show_demo_window);
+    bool showWidnow = true;
+    activeCamera->DisplayCameraProperties();
     // Setup scene background
     glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -96,42 +152,57 @@ int main() {
     deltaTime = timeValue - lastTime;
     lastTime = timeValue;
 
-
     // Update camera matrices
     activeCamera->UpdateCamera();
 
     // Draw the cubes
-    std::vector<float> cameraPos = {activeCamera->cameraPos.x, activeCamera->cameraPos.y, activeCamera->cameraPos.z};
+    std::vector<float> cameraPos = {activeCamera->cameraPos.x,
+                                    activeCamera->cameraPos.y,
+                                    activeCamera->cameraPos.z};
     using namespace std;
-    cout << "Sending " << cameraPos[0] << " " << cameraPos[1] << " " << cameraPos[2] << endl;
     lightingShader.setVec3("viewPos", cameraPos);
 
     // Draw the white cube: Update camera information, and model Matrix
     simpleShader.use();
     glBindVertexArray(VAO1);
     simpleShader.setMatrix("view", activeCamera->view);
-    simpleShader.setMatrix("projection", activeCamera -> projection);
+    simpleShader.setMatrix("projection", activeCamera->projection);
     glm::mat4 modelLight = glm::mat4(1.0f);
     modelLight = glm::translate(modelLight, lightPos);
     modelLight = glm::scale(modelLight, glm::vec3(0.2f));
     simpleShader.setMatrix("model", modelLight);
-    glad_glDrawArrays(GL_TRIANGLES, 0, 36);
-
-
+    glDrawArrays(GL_TRIANGLES, 0, 36);
 
     // Draw the regular cube: Update camera information, and model Matrix
     lightingShader.use();
     glBindVertexArray(VAO2); // setup a light VAO object
     lightingShader.setMatrix("view", activeCamera->view);
-    lightingShader.setMatrix("projection", activeCamera -> projection);
+    lightingShader.setMatrix("projection", activeCamera->projection);
     glm::mat4 model = glm::mat4(1.0f);
     lightingShader.setMatrix("model", model);
-    glad_glDrawArrays(GL_TRIANGLES, 0, 36);
+    glDrawArrays(GL_TRIANGLES, 0, 36);
+
+    // Render Imgui window
+    ImGui::Render();
+    ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+
+    // Update and Render additional Platform Windows
+    // (Platform functions may change the current OpenGL context, so we
+    // The way I understand it is if the window is weird, this will handle it
+    if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable) {
+      GLFWwindow *backup_current_context = glfwGetCurrentContext();
+      ImGui::UpdatePlatformWindows();
+      ImGui::RenderPlatformWindowsDefault();
+      glfwMakeContextCurrent(backup_current_context);
+    }
 
     // Swap the color buffer with the current buffer being displayed.
     glfwSwapBuffers(window);
     glfwPollEvents();
   }
+  ImGui_ImplOpenGL3_Shutdown();
+  ImGui_ImplGlfw_Shutdown();
+  ImGui::DestroyContext();
   glfwTerminate();
   return 0;
 }
@@ -199,7 +270,9 @@ GLFWwindow *setupWindow() {
    * Set the size of the renderring window so OpenGL knows what area within our
    * sized window it should render in. For our case, we render in all of it.
    */
-  glViewport(0, 0, WIDTH, HEIGHT);
+  int fwidth, fheight;
+  glfwGetFramebufferSize(window, &fwidth, &fheight);
+  glViewport(0, 0, fwidth, fheight);
 
   glfwSetFramebufferSizeCallback(window, frameBufferSizeCallback);
   return window;
@@ -209,48 +282,35 @@ void makeCube(unsigned int *vao) {
   // set up vertex data (and buffer(s)) and configure vertex attributes
   // ------------------------------------------------------------------
   float vertices[] = {
-      -0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,
-       0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f, 
-       0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f, 
-       0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f, 
-      -0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f, 
-      -0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f, 
+      -0.5f, -0.5f, -0.5f, 0.0f,  0.0f,  -1.0f, 0.5f,  -0.5f, -0.5f,
+      0.0f,  0.0f,  -1.0f, 0.5f,  0.5f,  -0.5f, 0.0f,  0.0f,  -1.0f,
+      0.5f,  0.5f,  -0.5f, 0.0f,  0.0f,  -1.0f, -0.5f, 0.5f,  -0.5f,
+      0.0f,  0.0f,  -1.0f, -0.5f, -0.5f, -0.5f, 0.0f,  0.0f,  -1.0f,
 
-      -0.5f, -0.5f,  0.5f,  0.0f,  0.0f, 1.0f,
-       0.5f, -0.5f,  0.5f,  0.0f,  0.0f, 1.0f,
-       0.5f,  0.5f,  0.5f,  0.0f,  0.0f, 1.0f,
-       0.5f,  0.5f,  0.5f,  0.0f,  0.0f, 1.0f,
-      -0.5f,  0.5f,  0.5f,  0.0f,  0.0f, 1.0f,
-      -0.5f, -0.5f,  0.5f,  0.0f,  0.0f, 1.0f,
+      -0.5f, -0.5f, 0.5f,  0.0f,  0.0f,  1.0f,  0.5f,  -0.5f, 0.5f,
+      0.0f,  0.0f,  1.0f,  0.5f,  0.5f,  0.5f,  0.0f,  0.0f,  1.0f,
+      0.5f,  0.5f,  0.5f,  0.0f,  0.0f,  1.0f,  -0.5f, 0.5f,  0.5f,
+      0.0f,  0.0f,  1.0f,  -0.5f, -0.5f, 0.5f,  0.0f,  0.0f,  1.0f,
 
-      -0.5f,  0.5f,  0.5f, -1.0f,  0.0f,  0.0f,
-      -0.5f,  0.5f, -0.5f, -1.0f,  0.0f,  0.0f,
-      -0.5f, -0.5f, -0.5f, -1.0f,  0.0f,  0.0f,
-      -0.5f, -0.5f, -0.5f, -1.0f,  0.0f,  0.0f,
-      -0.5f, -0.5f,  0.5f, -1.0f,  0.0f,  0.0f,
-      -0.5f,  0.5f,  0.5f, -1.0f,  0.0f,  0.0f,
+      -0.5f, 0.5f,  0.5f,  -1.0f, 0.0f,  0.0f,  -0.5f, 0.5f,  -0.5f,
+      -1.0f, 0.0f,  0.0f,  -0.5f, -0.5f, -0.5f, -1.0f, 0.0f,  0.0f,
+      -0.5f, -0.5f, -0.5f, -1.0f, 0.0f,  0.0f,  -0.5f, -0.5f, 0.5f,
+      -1.0f, 0.0f,  0.0f,  -0.5f, 0.5f,  0.5f,  -1.0f, 0.0f,  0.0f,
 
-       0.5f,  0.5f,  0.5f,  1.0f,  0.0f,  0.0f,
-       0.5f,  0.5f, -0.5f,  1.0f,  0.0f,  0.0f,
-       0.5f, -0.5f, -0.5f,  1.0f,  0.0f,  0.0f,
-       0.5f, -0.5f, -0.5f,  1.0f,  0.0f,  0.0f,
-       0.5f, -0.5f,  0.5f,  1.0f,  0.0f,  0.0f,
-       0.5f,  0.5f,  0.5f,  1.0f,  0.0f,  0.0f,
+      0.5f,  0.5f,  0.5f,  1.0f,  0.0f,  0.0f,  0.5f,  0.5f,  -0.5f,
+      1.0f,  0.0f,  0.0f,  0.5f,  -0.5f, -0.5f, 1.0f,  0.0f,  0.0f,
+      0.5f,  -0.5f, -0.5f, 1.0f,  0.0f,  0.0f,  0.5f,  -0.5f, 0.5f,
+      1.0f,  0.0f,  0.0f,  0.5f,  0.5f,  0.5f,  1.0f,  0.0f,  0.0f,
 
-      -0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,
-       0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,
-       0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,
-       0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,
-      -0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,
-      -0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,
+      -0.5f, -0.5f, -0.5f, 0.0f,  -1.0f, 0.0f,  0.5f,  -0.5f, -0.5f,
+      0.0f,  -1.0f, 0.0f,  0.5f,  -0.5f, 0.5f,  0.0f,  -1.0f, 0.0f,
+      0.5f,  -0.5f, 0.5f,  0.0f,  -1.0f, 0.0f,  -0.5f, -0.5f, 0.5f,
+      0.0f,  -1.0f, 0.0f,  -0.5f, -0.5f, -0.5f, 0.0f,  -1.0f, 0.0f,
 
-      -0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,
-       0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,
-       0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,
-       0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,
-      -0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,
-      -0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f
-  };
+      -0.5f, 0.5f,  -0.5f, 0.0f,  1.0f,  0.0f,  0.5f,  0.5f,  -0.5f,
+      0.0f,  1.0f,  0.0f,  0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,
+      0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,  -0.5f, 0.5f,  0.5f,
+      0.0f,  1.0f,  0.0f,  -0.5f, 0.5f,  -0.5f, 0.0f,  1.0f,  0.0f};
   unsigned VBO;
   glGenVertexArrays(1, vao);
   glBindVertexArray(*vao);
@@ -289,10 +349,30 @@ void processInput(GLFWwindow *window) {
   if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
     glfwSetWindowShouldClose(window, 1);
 
+  if (!enableControl && glfwGetKey(window, GLFW_KEY_0) == GLFW_PRESS)
+    enableControl = true;
+  if (enableControl && glfwGetKey(window, GLFW_KEY_9) == GLFW_PRESS)
+    enableControl = false;
+  if (!displayCursor && glfwGetKey(window, GLFW_KEY_8) == GLFW_PRESS)
+    displayCursor = true;
+
+  if (displayCursor && glfwGetKey(window, GLFW_KEY_7) == GLFW_PRESS)
+    displayCursor = false;
+
+  if (displayCursor != displayingCursor) {
+    glfwSetInputMode(window, GLFW_CURSOR,
+                     (displayCursor) ? GLFW_CURSOR_NORMAL
+                                     : GLFW_CURSOR_DISABLED);
+    displayingCursor = displayCursor;
+  }
+  if (!enableControl)
+    return;
   // make our camera process the rest of the inputs
   activeCamera->KeyInput(window);
 }
 
 void frameBufferSizeCallback(GLFWwindow *window, int width, int height) {
-  glViewport(0, 0, width, height);
+  int fwidth, fheight;
+  glfwGetFramebufferSize(window, &fwidth, &fheight);
+  glViewport(0, 0, fwidth, fheight);
 }

@@ -1,14 +1,19 @@
+#include <camera/camera.hpp>
 #include <glm/ext/matrix_transform.hpp>
 #include <glm/fwd.hpp>
 #include <glm/geometric.hpp>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
-#include <camera/camera.hpp>
 #include <glm/trigonometric.hpp>
+#include <imgui/imgui.h>
+
+extern int WIDTH, HEIGHT;
+extern bool enableControl;
 
 Camera::Camera(GLFWwindow *window) {
   view = glm::mat4(1.0f);
-  projection = glm::perspective(glm::radians(fov), 800 / 600.0f, 0.1f, 100.0f);
+  projection =
+      glm::perspective(glm::radians(fov), (float)WIDTH / HEIGHT, 0.1f, 1000.0f);
 }
 
 void Camera::UpdateCamera() {
@@ -17,7 +22,7 @@ void Camera::UpdateCamera() {
   direction.z = sin(glm::radians(yaw)) * cos(glm::radians(pitch));
   cameraFront = glm::normalize(direction);
   view = glm::lookAt(cameraPos, cameraPos + cameraFront, cameraUp);
-  projection = glm::perspective(glm::radians(fov), 800 / 600.0f, 0.1f, 100.0f);
+  projection = glm::perspective(glm::radians(fov), 800 / 600.0f, 0.1f, 1000.0f);
 }
 #include <iostream>
 void Camera::KeyInput(GLFWwindow *window) {
@@ -34,13 +39,12 @@ void Camera::KeyInput(GLFWwindow *window) {
   if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
     cameraPos +=
         cameraSpeed * glm::normalize(glm::cross(cameraFront, cameraUp));
-  
-  if(glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS) 
+
+  if (glfwGetKey(window, GLFW_KEY_E) == GLFW_PRESS)
     cameraPos += cameraSpeed * cameraUp;
 
-  if(glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS) 
+  if (glfwGetKey(window, GLFW_KEY_Q) == GLFW_PRESS)
     cameraPos -= cameraSpeed * cameraUp;
-  
 }
 
 void Camera::InitCallbacks(GLFWwindow *window) {
@@ -48,6 +52,8 @@ void Camera::InitCallbacks(GLFWwindow *window) {
   glfwSetScrollCallback(window, ScrollCallback);
 }
 void Camera::MouseCallback(GLFWwindow *window, double posX, double posY) {
+  if (!enableControl)
+    return;
   if (activeCamera->firstMouse) {
     lastX = posX;
     lastY = posY;
@@ -77,4 +83,16 @@ void Camera::ScrollCallback(GLFWwindow *window, double _, double yoffset) {
   if (activeCamera->fov > 90.0f) {
     activeCamera->fov = 90.0f;
   }
+}
+
+void Camera::DisplayCameraProperties() {
+  bool showWindow = true;
+  ImGui::Begin("Camera Properties:", &showWindow);
+  ImGui::Text("Camera properties displayed here...");
+  ImGui::Text("Pitch: %f", pitch);
+  ImGui::Text("Yaw: %f", yaw);
+  ImGui::Text("Position (XYZ) { %.3f %.3f %.3f }", cameraPos.x, cameraPos.y,
+              cameraPos.z);
+  // ImGui::Text("Pitch: ", pitch);
+  ImGui::End();
 }
