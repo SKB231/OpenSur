@@ -18,10 +18,8 @@ if(APPLE)
     target_include_directories(main PUBLIC /opt/homebrew/opt/glm/include)
 endif()
 
-target_link_libraries(main PUBLIC glfw ) 
-if(APPLE)
-    target_link_libraries(main PUBLIC glfw)
-else()
-    target_link_libraries(main PUBLIC glfw GL X11 pthread Xrandr)
+target_link_libraries(main PUBLIC glfw ${CMAKE_SOURCE_DIR}/vendor/assimp/libassimp.5.4.3.dylib) 
+if(NOT APPLE)
+    target_link_libraries(main PUBLIC GL X11 pthread Xrandr)
 endif()
 

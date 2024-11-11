@@ -16,17 +16,22 @@
 #include <shader/shader.hpp>
 #include <string>
 #define STB_IMAGE_IMPLEMENTATION
+#include <format>
 #include <imgui/backends/imgui_impl_glfw.h>
 #include <imgui/backends/imgui_impl_opengl3.h>
 #include <imgui/imgui.h>
 #include <stb_image/stb_image.h>
+
 using std::cout;
 using std::endl;
+using std::string;
 
 // Globals
 #ifndef GLOBALS
 #define GLOBALS
-bool show_demo_window = false;
+float f32_zero = -10.0f;
+float f32_one = 10.0f;
+bool show_demo_window = true;
 int WIDTH = 1000;
 int HEIGHT = 1000;
 const char *glsl_version = "#version 150";
@@ -56,6 +61,11 @@ glm::vec3 cubePositions[] = {
     glm::vec3(2.4f, -0.4f, -3.5f),  glm::vec3(-1.7f, 3.0f, -7.5f),
     glm::vec3(1.3f, -2.0f, -2.5f),  glm::vec3(1.5f, 2.0f, -2.5f),
     glm::vec3(1.5f, 0.2f, -1.5f),   glm::vec3(-1.3f, 1.0f, -1.5f)};
+std::vector<float> pointLightPositions[] = {
+    std::vector<float>{0.7f, 0.2f, 2.0f},
+    std::vector<float>{2.3f, -3.3f, -4.0f},
+    std::vector<float>{-4.0f, 2.0f, -12.0f},
+    std::vector<float>{0.0f, 0.0f, -3.0f}};
 
 void frameBufferSizeCallback(GLFWwindow *window, int width, int height);
 void processInput(GLFWwindow *window);
@@ -91,29 +101,62 @@ int main() {
 
   glEnable(GL_DEPTH_TEST);
   lightingShader.use();
+  /*
+  struct PointLight{
+    vec3 position;
+    //vec3 direction;
 
-  lightingShader.setVec3("lightColor", {1.0f, 1.0f, 1.0f});
+    vec3 ambient;
+    vec3 diffuse;
+    vec3 specular;
+
+    float constant;
+    float linear;
+    float quadratic;
+};
+*/
+  for (int i = 0; i < 4; i++) {
+    // http://www.ogre3d.org/tikiwiki/tiki-index.php?page=-Point+Light+Attenuation
+    string index = "[" + std::to_string(i) + "]";
+    lightingShader.setVec3("pointLights" + index + ".position",
+                           pointLightPositions[i]);
+    lightingShader.setVec3("pointLights" + index + ".ambient",
+                           {0.2f, 0.2f, 0.2f});
+    lightingShader.setVec3("pointLights" + index + ".diffuse",
+                           {0.5f, 0.5f, 0.5f});
+
+    lightingShader.setVec3("pointLights" + index + ".specular", {1, 1, 1});
+    lightingShader.setFloat("pointLights" + index + ".constant", 1.0f);
+    lightingShader.setFloat("pointLights" + index + ".linear", 0.09f);
+    lightingShader.setFloat("pointLights" + index + ".quadratic", 0.032f);
+  }
+
+  std::vector<float> dirLightDirection = {-0.2f, -1.0f, -0.3f};
+  lightingShader.setInt("usePointLight", 0);
+  lightingShader.setVec3("dirLight.direction", dirLightDirection);
+  lightingShader.setVec3("dirLight.ambient", {0.2f, 0.2f, 0.2f});
+  lightingShader.setVec3("dirLight.diffuse", {0.5f, 0.5f, 0.5f});
+  lightingShader.setVec3("dirLight.specular", {1.0f, 1.0f, 1.0f});
+
   lightingShader.setVec3("material.ambient", {1.0f, 0.5f, 0.31f});
   // lightingShader.setVec3("material.specular", {0.0f, 0.0f, 0.0f});
   lightingShader.setFloat("material.shininess", 32.0f);
-  lightingShader.setVec3("lightColor", {1.0f, 1.0f, 1.0f});
-  lightingShader.setFloat("light.cutOff", glm::cos(glm::radians(12.5f)));
-  lightingShader.setFloat("light.outerConeCutoff",
-                          glm::cos(glm::radians(17.5f)));
+  // lightingShader.setFloat("light.cutOff", glm::cos(glm::radians(12.5f)));
+  // lightingShader.setFloat("light.outerConeCutoff",
+  //                         glm::cos(glm::radians(17.5f)));
 
   // lightingShader.setVec3("light.direction", {-0.2f, -1.0f, -0.3f});
 
   // point light variables
   // More values at:
-  // http://www.ogre3d.org/tikiwiki/tiki-index.php?page=-Point+Light+Attenuation
-  lightingShader.setFloat("light.constant", 1.0f);
-  lightingShader.setFloat("light.linear", 0.09f);
-  lightingShader.setFloat("light.quadratic", 0.032f);
+  // lightingShader.setFloat("light.constant", 1.0f);
+  // lightingShader.setFloat("light.linear", 0.09f);
+  // lightingShader.setFloat("light.quadratic", 0.032f);
 
-  lightingShader.setVec3("light.ambient", {0.2f, 0.2f, 0.2f});
-  lightingShader.setVec3("light.diffuse",
-                         {0.5f, 0.5f, 0.5f}); // darken diffuse light a bit
-  lightingShader.setVec3("light.specular", {1.0f, 1.0f, 1.0f});
+  // lightingShader.setVec3("light.ambient", {0.2f, 0.2f, 0.2f});
+  // lightingShader.setVec3("light.diffuse",
+  //                        {0.5f, 0.5f, 0.5f}); // darken diffuse light a bit
+  // lightingShader.setVec3("light.specular", {1.0f, 1.0f, 1.0f});
 
   lightingShader.setInt("material.diffuseMap", 0);
   glActiveTexture(GL_TEXTURE0);
@@ -133,9 +176,9 @@ int main() {
   io.ConfigFlags |=
       ImGuiConfigFlags_NavEnableKeyboard; // Enable Keyboard Controls
   io.ConfigFlags |=
-      ImGuiConfigFlags_NavEnableGamepad;             // Enable Gamepad Controls
-  io.ConfigFlags &= !ImGuiConfigFlags_DockingEnable; // Enable Docking
-  io.ConfigFlags &=
+      ImGuiConfigFlags_NavEnableGamepad;            // Enable Gamepad Controls
+  io.ConfigFlags |= ImGuiConfigFlags_DockingEnable; // Enable Docking
+  io.ConfigFlags |=
       !ImGuiConfigFlags_ViewportsEnable; // Enable Multi-Viewport /
 
   // Setup Platform/Renderer backends
@@ -145,6 +188,8 @@ int main() {
 #endif
   ImGui_ImplOpenGL3_Init(glsl_version);
   // RenderLoop:
+  bool pointLightsOn = true;
+  bool prevPointLightsOn = false;
   while (!glfwWindowShouldClose(window)) {
 
     // Handle any polled user inputs:
@@ -153,7 +198,24 @@ int main() {
     ImGui_ImplOpenGL3_NewFrame();
     ImGui_ImplGlfw_NewFrame();
     ImGui::NewFrame();
+    bool showDirLightWind = true;
+    ImGui::Begin("Direcitonal Light direction", &showDirLightWind);
+    ImGui::DragScalar("x", ImGuiDataType_Float, &dirLightDirection[0], 0.005f,
+                      &f32_zero, &f32_one, "%f");
 
+    ImGui::DragScalar("y", ImGuiDataType_Float, &dirLightDirection[1], 0.005f,
+                      &f32_zero, &f32_one, "%f");
+
+    ImGui::DragScalar("z", ImGuiDataType_Float, &dirLightDirection[2], 0.005f,
+                      &f32_zero, &f32_one, "%f");
+    ImGui::Checkbox("Point Lights ON ", &pointLightsOn);
+    ImGui::End();
+
+    if (pointLightsOn != prevPointLightsOn) {
+      prevPointLightsOn = pointLightsOn;
+      lightingShader.setInt("usePointLight", pointLightsOn);
+    }
+    lightingShader.setVec3("dirLight.direction", dirLightDirection);
     // 1. Show the big demo window (Most of the sample code is in
     // ImGui::ShowDemoWindow()! You can browse its code to learn more about Dear
     // ImGui!).
@@ -163,7 +225,7 @@ int main() {
     activeCamera->DisplayCameraProperties();
     // Setup scene background
     // glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
-    glClearColor(.0f, .0f, 0.0f, 1.0f);
+    // glClearColor(.0f, .0f, 0.0f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     // Update time and delta time
@@ -178,27 +240,26 @@ int main() {
                                     activeCamera->cameraPos.y,
                                     activeCamera->cameraPos.z};
 
-    // Draw the white cube : Update camera information,
-    //    and model Matrix
+    // Draw the white cube : Update camera information, and model matrix
     simpleShader.use();
     glBindVertexArray(VAO1);
     simpleShader.setMatrix("view", activeCamera->view);
     simpleShader.setMatrix("projection", activeCamera->projection);
-    glm::mat4 modelLight = glm::mat4(1.0f);
-    // modelLight = glm::translate(modelLight, lightPos);
-    // modelLight = glm::scale(modelLight, glm::vec3(0.2f));
-    simpleShader.setMatrix("model", modelLight);
-    glDrawArrays(GL_TRIANGLES, 0, 36);
+    for (int i = 0; i < 4; i++) {
+      glm::mat4 modelLight = glm::mat4(1.0f);
+      modelLight =
+          glm::translate(modelLight, glm::vec3(pointLightPositions[i][0],
+                                               pointLightPositions[i][1],
+                                               pointLightPositions[i][2]));
+      modelLight = glm::scale(modelLight, glm::vec3(0.2f));
+      simpleShader.setMatrix("model", modelLight);
+      glDrawArrays(GL_TRIANGLES, 0, 36);
+    }
 
     lightingShader.use();
-    lightingShader.setVec3("light.position", cameraPos);
-    lightingShader.setVec3("light.direction", {activeCamera->cameraFront.x,
-                                               activeCamera->cameraFront.y,
-                                               activeCamera->cameraFront.z});
     lightingShader.setVec3("viewPos", cameraPos);
     for (int i = 0; i < 10; i++) {
       // Draw the regular cube: Update camera information, and model Matrix
-      lightingShader.use();
       glBindVertexArray(VAO2); // setup a light VAO object
       lightingShader.setMatrix("view", activeCamera->view);
       lightingShader.setMatrix("projection", activeCamera->projection);

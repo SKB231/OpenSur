@@ -28,8 +28,7 @@ Shader ::Shader(const std::string &vertexPath,
   }
   unsigned int vertexShader = setupShader(GL_VERTEX_SHADER, vertexShaderSource);
   // Fragment Shader
-  notHadError =
-      getShaderSource(&fragmentShaderSrc, "shaders/" + fragmentPath);
+  notHadError = getShaderSource(&fragmentShaderSrc, "shaders/" + fragmentPath);
   if (!notHadError) {
     return;
   }
@@ -64,6 +63,11 @@ void Shader::setFloat(const std::string &name, float value) const {
 
 void Shader::setVec3(const std::string &name, std::vector<float> value) const {
   if (value.size() < 3) {
+    std::cout << "Contains: " << value.size() << std::endl;
+    for (auto v : value) {
+      std::cout << v << ", ";
+    }
+    std::cout << std::endl;
     std::cout << "Cannot assign to a unifrom vec3f using a vector only "
                  "containing less than 3 values"
               << std::endl;
@@ -77,6 +81,10 @@ void Shader::setVec4(const std::string &name, std::vector<float> value) const {
     std::cout << "Cannot assign to a unifrom vec4f using a vector only "
                  "containing 3 values"
               << std::endl;
+    for (auto v : value) {
+      std::cout << v << ", ";
+    }
+    std::cout << std::endl;
   }
 
   glUniform4f(glGetUniformLocation(ID, name.c_str()), value[0], value[1],
