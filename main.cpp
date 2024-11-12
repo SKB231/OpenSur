@@ -16,6 +16,7 @@
 #include <shader/shader.hpp>
 #include <string>
 #define STB_IMAGE_IMPLEMENTATION
+#include <Model/model.hpp>
 #include <format>
 #include <imgui/backends/imgui_impl_glfw.h>
 #include <imgui/backends/imgui_impl_opengl3.h>
@@ -93,51 +94,6 @@ int main() {
   Shader simpleShader("vertexShader.glsl", "whiteFrag.glsl");
   Shader lightingShader("vertexShader.glsl", "simpleLight.glsl");
 
-  unsigned int VAO1;
-  makeCube(&VAO1);
-
-  unsigned int VAO2;
-  makeCube(&VAO2);
-
-  glEnable(GL_DEPTH_TEST);
-  lightingShader.use();
-  for (int i = 0; i < 4; i++) {
-    // http://www.ogre3d.org/tikiwiki/tiki-index.php?page=-Point+Light+Attenuation
-    string index = "[" + std::to_string(i) + "]";
-    lightingShader.setVec3("pointLights" + index + ".position",
-                           pointLightPositions[i]);
-    lightingShader.setVec3("pointLights" + index + ".ambient",
-                           {0.2f, 0.2f, 0.2f});
-    lightingShader.setVec3("pointLights" + index + ".diffuse",
-                           {0.5f, 0.5f, 0.5f});
-
-    lightingShader.setVec3("pointLights" + index + ".specular", {1, 1, 1});
-    lightingShader.setFloat("pointLights" + index + ".constant", 1.0f);
-    lightingShader.setFloat("pointLights" + index + ".linear", 0.09f);
-    lightingShader.setFloat("pointLights" + index + ".quadratic", 0.032f);
-  }
-
-  float dirLightDirection[3] = {-0.2f, -1.0f, -0.3f};
-  float background[3] = {0, 0, 0};
-  lightingShader.setInt("usePointLight", 0);
-  lightingShader.setVec3(
-      "dirLight.direction",
-      std::vector<float>(dirLightDirection, dirLightDirection + 3));
-  lightingShader.setVec3("dirLight.ambient", {0.2f, 0.2f, 0.2f});
-  lightingShader.setVec3("dirLight.diffuse", {0.5f, 0.5f, 0.5f});
-  lightingShader.setVec3("dirLight.specular", {1.0f, 1.0f, 1.0f});
-
-  lightingShader.setVec3("material.ambient", {1.0f, 0.5f, 0.31f});
-  lightingShader.setFloat("material.shininess", 32.0f);
-
-  lightingShader.setInt("material.diffuseMap", 0);
-  glActiveTexture(GL_TEXTURE0);
-  unsigned int diffuseMap = loadAndSetupImage("container2.png", true);
-
-  lightingShader.setInt("material.specularMap", 1);
-  glActiveTexture(GL_TEXTURE1);
-  unsigned int specularMap = loadAndSetupImage("container2_specular.png", true);
-
   Camera::InitCallbacks(window);
 
   // Imgui Context init:
@@ -162,6 +118,9 @@ int main() {
   // RenderLoop:
   bool pointLightsOn = true;
   bool prevPointLightsOn = false;
+  Model backpackModel("backpack/backpack.obj");
+  float background[3] = {0.5f, 0.5f, 0.5f};
+
   while (!glfwWindowShouldClose(window)) {
 
     // Handle any polled user inputs:
@@ -171,25 +130,23 @@ int main() {
     ImGui_ImplGlfw_NewFrame();
     ImGui::NewFrame();
     bool showDirLightWind = true;
-    ImGui::Begin("Light Control", &showDirLightWind);
-    ImGui::ColorEdit4("Directional light", dirLightDirection);
-    ImGui::ColorEdit4("Background Color ", background);
-    ImGui::Checkbox("Point Lights ON ", &pointLightsOn);
-    ImGui::End();
-
     if (pointLightsOn != prevPointLightsOn) {
       prevPointLightsOn = pointLightsOn;
-      lightingShader.setInt("usePointLight", pointLightsOn);
+      // lightingShader.setInt("usePointLight", pointLightsOn);
     }
-    lightingShader.setVec3(
-        "dirLight.direction",
-        std::vector<float>(dirLightDirection, dirLightDirection + 3));
+    // lightingShader.setVec3(
+    //  "dirLight.direction",
+    //  std::vector<float>(dirLightDirection, dirLightDirection + 3));
     if (show_demo_window)
       ImGui::ShowDemoWindow(&show_demo_window);
     bool showWidnow = true;
     activeCamera->DisplayCameraProperties();
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glClearColor(background[0], background[1], background[2], 1);
+
+    ImGui::Begin("Background Color", &showWidnow);
+    ImGui::ColorEdit4("Background: ", background);
+    ImGui::End();
 
     // Update time and delta time
     float timeValue = glfwGetTime();
@@ -202,38 +159,26 @@ int main() {
     std::vector<float> cameraPos = {activeCamera->cameraPos.x,
                                     activeCamera->cameraPos.y,
                                     activeCamera->cameraPos.z};
-
-    // Draw the white cube : Update camera information, and model matrix
     simpleShader.use();
-    glBindVertexArray(VAO1);
     simpleShader.setMatrix("view", activeCamera->view);
     simpleShader.setMatrix("projection", activeCamera->projection);
-    for (int i = 0; i < 4; i++) {
-      glm::mat4 modelLight = glm::mat4(1.0f);
-      modelLight =
-          glm::translate(modelLight, glm::vec3(pointLightPositions[i][0],
-                                               pointLightPositions[i][1],
-                                               pointLightPositions[i][2]));
-      modelLight = glm::scale(modelLight, glm::vec3(0.2f));
-      simpleShader.setMatrix("model", modelLight);
-      glDrawArrays(GL_TRIANGLES, 0, 36);
-    }
-
-    lightingShader.use();
-    lightingShader.setVec3("viewPos", cameraPos);
-    for (int i = 0; i < 10; i++) {
-      // Draw the regular cube: Update camera information, and model Matrix
-      glBindVertexArray(VAO2); // setup a light VAO object
-      lightingShader.setMatrix("view", activeCamera->view);
-      lightingShader.setMatrix("projection", activeCamera->projection);
-      float angle = i * 20.0f;
-      glm::mat4 model = glm::mat4(1.0f);
-      glm::mat4 translated = glm::translate(model, cubePositions[i]);
-      lightingShader.setMatrix(
-          "model", glm::rotate(translated, angle, glm::vec3(1, 0.3f, .5f)));
-
-      glDrawArrays(GL_TRIANGLES, 0, 36);
-    }
+    simpleShader.setMatrix("model", glm::mat4(1.0f));
+    backpackModel.Draw(simpleShader);
+    // Draw the white cube : Update camera information, and model matrix
+    // simpleShader.use();
+    // glBindVertexArray(VAO1);
+    // simpleShader.setMatrix("view", activeCamera->view);
+    // simpleShader.setMatrix("projection", activeCamera->projection);
+    // for (int i = 0; i < 4; i++) {
+    //   glm::mat4 modelLight = glm::mat4(1.0f);
+    //   modelLight =
+    //       glm::translate(modelLight, glm::vec3(pointLightPositions[i][0],
+    //                                            pointLightPositions[i][1],
+    //                                            pointLightPositions[i][2]));
+    //   modelLight = glm::scale(modelLight, glm::vec3(0.2f));
+    //   // simpleShader.setMatrix("model", modelLight);
+    //   glDrawArrays(GL_TRIANGLES, 0, 36);
+    // }
 
     // Render Imgui window
     ImGui::Render();
@@ -328,84 +273,6 @@ GLFWwindow *setupWindow() {
 
   glfwSetFramebufferSizeCallback(window, frameBufferSizeCallback);
   return window;
-}
-
-void makeCube(unsigned int *vao) {
-  // set up vertex data (and buffer(s)) and configure vertex attributes
-  // ------------------------------------------------------------------
-  float vertices[] = {
-      // positions          // normals           // texture coords
-      -0.5f, -0.5f, -0.5f, 0.0f,  0.0f,  -1.0f, 0.0f,  0.0f,  0.5f,  -0.5f,
-      -0.5f, 0.0f,  0.0f,  -1.0f, 1.0f,  0.0f,  0.5f,  0.5f,  -0.5f, 0.0f,
-      0.0f,  -1.0f, 1.0f,  1.0f,  0.5f,  0.5f,  -0.5f, 0.0f,  0.0f,  -1.0f,
-      1.0f,  1.0f,  -0.5f, 0.5f,  -0.5f, 0.0f,  0.0f,  -1.0f, 0.0f,  1.0f,
-      -0.5f, -0.5f, -0.5f, 0.0f,  0.0f,  -1.0f, 0.0f,  0.0f,
-
-      -0.5f, -0.5f, 0.5f,  0.0f,  0.0f,  1.0f,  0.0f,  0.0f,  0.5f,  -0.5f,
-      0.5f,  0.0f,  0.0f,  1.0f,  1.0f,  0.0f,  0.5f,  0.5f,  0.5f,  0.0f,
-      0.0f,  1.0f,  1.0f,  1.0f,  0.5f,  0.5f,  0.5f,  0.0f,  0.0f,  1.0f,
-      1.0f,  1.0f,  -0.5f, 0.5f,  0.5f,  0.0f,  0.0f,  1.0f,  0.0f,  1.0f,
-      -0.5f, -0.5f, 0.5f,  0.0f,  0.0f,  1.0f,  0.0f,  0.0f,
-
-      -0.5f, 0.5f,  0.5f,  -1.0f, 0.0f,  0.0f,  1.0f,  0.0f,  -0.5f, 0.5f,
-      -0.5f, -1.0f, 0.0f,  0.0f,  1.0f,  1.0f,  -0.5f, -0.5f, -0.5f, -1.0f,
-      0.0f,  0.0f,  0.0f,  1.0f,  -0.5f, -0.5f, -0.5f, -1.0f, 0.0f,  0.0f,
-      0.0f,  1.0f,  -0.5f, -0.5f, 0.5f,  -1.0f, 0.0f,  0.0f,  0.0f,  0.0f,
-      -0.5f, 0.5f,  0.5f,  -1.0f, 0.0f,  0.0f,  1.0f,  0.0f,
-
-      0.5f,  0.5f,  0.5f,  1.0f,  0.0f,  0.0f,  1.0f,  0.0f,  0.5f,  0.5f,
-      -0.5f, 1.0f,  0.0f,  0.0f,  1.0f,  1.0f,  0.5f,  -0.5f, -0.5f, 1.0f,
-      0.0f,  0.0f,  0.0f,  1.0f,  0.5f,  -0.5f, -0.5f, 1.0f,  0.0f,  0.0f,
-      0.0f,  1.0f,  0.5f,  -0.5f, 0.5f,  1.0f,  0.0f,  0.0f,  0.0f,  0.0f,
-      0.5f,  0.5f,  0.5f,  1.0f,  0.0f,  0.0f,  1.0f,  0.0f,
-
-      -0.5f, -0.5f, -0.5f, 0.0f,  -1.0f, 0.0f,  0.0f,  1.0f,  0.5f,  -0.5f,
-      -0.5f, 0.0f,  -1.0f, 0.0f,  1.0f,  1.0f,  0.5f,  -0.5f, 0.5f,  0.0f,
-      -1.0f, 0.0f,  1.0f,  0.0f,  0.5f,  -0.5f, 0.5f,  0.0f,  -1.0f, 0.0f,
-      1.0f,  0.0f,  -0.5f, -0.5f, 0.5f,  0.0f,  -1.0f, 0.0f,  0.0f,  0.0f,
-      -0.5f, -0.5f, -0.5f, 0.0f,  -1.0f, 0.0f,  0.0f,  1.0f,
-
-      -0.5f, 0.5f,  -0.5f, 0.0f,  1.0f,  0.0f,  0.0f,  1.0f,  0.5f,  0.5f,
-      -0.5f, 0.0f,  1.0f,  0.0f,  1.0f,  1.0f,  0.5f,  0.5f,  0.5f,  0.0f,
-      1.0f,  0.0f,  1.0f,  0.0f,  0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,
-      1.0f,  0.0f,  -0.5f, 0.5f,  0.5f,  0.0f,  1.0f,  0.0f,  0.0f,  0.0f,
-      -0.5f, 0.5f,  -0.5f, 0.0f,  1.0f,  0.0f,  0.0f,  1.0f};
-
-  unsigned VBO;
-  glGenVertexArrays(1, vao);
-  glBindVertexArray(*vao);
-
-  // unsigned int EBO;
-  // glGenBuffers(1, &EBO);
-  // glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
-  // glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices,
-  //              GL_STATIC_DRAW);
-
-  // Generate a buffer and assign the ID to VBO: Vertex Buffer Object.
-  glGenBuffers(1, &VBO);
-
-  // Bind the GL_ARRAY_BUFFER with the VBO Buffer.
-  glBindBuffer(GL_ARRAY_BUFFER, VBO);
-
-  // Copies vertex data to buffer we have just bound
-  glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-
-  // Setup the vertex objects for our VBOs
-  // first_arg: Position we are assigning. We set it to 0 since we are assigning
-  // the position attribute which is the 0th attribute. second_arg: How many
-  // components per vertex attribute.
-  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void *)0);
-  glEnableVertexAttribArray(0);
-  // Similarly, set the attributes of the second index, which are the colors,
-  // and enable them.
-  glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float),
-                        (void *)(3 * sizeof(float)));
-  // Lastly, set the attributes of the third index, which are the texture
-  // coordinates.
-  glEnableVertexAttribArray(1);
-  glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float),
-                        (void *)(6 * sizeof(float)));
-  glEnableVertexAttribArray(2);
 }
 
 void processInput(GLFWwindow *window) {

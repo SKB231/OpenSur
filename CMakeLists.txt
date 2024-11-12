@@ -7,7 +7,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 file(GLOB IMGUI_SOURCES "${CMAKE_SOURCE_DIR}/vendor/imgui/*.cpp" "${CMAKE_SOURCE_DIR}/vendor/imgui/backends/imgui_impl_opengl3*" "${CMAKE_SOURCE_DIR}/vendor/imgui/backends/imgui_impl_glfw*")
 
-add_executable(main ./main.cpp ./src/glad.c ./src/shader.cpp ./src/camera.cpp ${IMGUI_SOURCES} )
+add_executable(main ./main.cpp ./src/glad.c ./src/shader.cpp ./src/camera.cpp ${IMGUI_SOURCES} ./src/model.cpp ./src/mesh.cpp)
 
 target_include_directories(main PUBLIC ${CMAKE_SOURCE_DIR}/vendor)
 target_include_directories(main PUBLIC ${CMAKE_SOURCE_DIR}/vendor/imgui)

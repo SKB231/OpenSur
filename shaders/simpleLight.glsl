@@ -64,6 +64,7 @@ void main()
     
     vec3 norm=normalize(Normal);
     vec3 viewDir=normalize(viewPos-FragPos);
+    
     // phase 1: Directional light
     vec3 result=CalcDirLight(dirLight,norm,viewDir);
     if(usePointLight==1){

@@ -1,7 +1,7 @@
 #include "assimp/material.h"
 #include "assimp/postprocess.h"
 #include "assimp/scene.h"
-#include <Model/Model.hpp>
+#include <Model/model.hpp>
 #include <iostream>
 #include <stb_image/stb_image.h>
 #include <string>
@@ -11,10 +11,15 @@ using std::endl;
 using std::move;
 using std::string;
 using std::vector;
-
+static int x = 0;
 unsigned int loadAndSetupImage(const char *imageName);
 
-void Model::loadModel(string &path) {
+void Model::Draw(Shader &shader) {
+  for (int i = 0; i < meshes.size(); i++) {
+    meshes[i].Draw(shader);
+  }
+}
+void Model::loadModel(string path) {
   Assimp::Importer import;
   const aiScene *scene =
       import.ReadFile(path, aiProcess_Triangulate | aiProcess_FlipUVs);
@@ -25,14 +30,16 @@ void Model::loadModel(string &path) {
          << import.GetErrorString() << endl;
     return;
   }
-
+  cout << "Model contains " << scene->mNumMeshes << " meshes" << endl;
   processNode(scene->mRootNode, scene);
+  cout << "Scene processed " << x << " meshes." << endl;
 }
 
 void Model::processNode(aiNode *node, const aiScene *scene) {
   // process the meshes of the current node
   for (int i = 0; i < node->mNumMeshes; i++) {
     meshes.push_back(processMesh(scene->mMeshes[node->mMeshes[i]], scene));
+    x += 1;
   }
   // process the children
   for (int i = 0; i < node->mNumChildren; i++) {
@@ -40,13 +47,13 @@ void Model::processNode(aiNode *node, const aiScene *scene) {
   }
 }
 
-Mesh &&Model::processMesh(aiMesh *mesh, const aiScene *scene) {
+Mesh Model::processMesh(aiMesh *mesh, const aiScene *scene) {
   vector<Vertex> vertices;
   vector<uint32_t> indices;
   vector<Texture> textures;
 
   // process vertices
-  for (uint32_t i = 0; i <= mesh->mNumVertices; i++) {
+  for (uint32_t i = 0; i < mesh->mNumVertices; i++) {
     Vertex vec;
     glm::vec3 pos = glm::vec3(mesh->mVertices[i].x, mesh->mVertices[i].y,
                               mesh->mVertices[i].z);
@@ -68,11 +75,14 @@ Mesh &&Model::processMesh(aiMesh *mesh, const aiScene *scene) {
     }
     vertices.push_back(vec);
   }
+
+
   // process indices
+
   for (uint32_t i = 0; i < mesh->mNumFaces; i++) {
     aiFace face = mesh->mFaces[i];
-    for (uint32_t j = 0; j < face.mNumIndices; i++) {
-      indices.push_back(face.mIndices[i]);
+    for (uint32_t j = 0; j < face.mNumIndices; j++) {
+      indices.push_back(face.mIndices[j]);
     }
   }
 
@@ -90,7 +100,7 @@ Mesh &&Model::processMesh(aiMesh *mesh, const aiScene *scene) {
   //  textures.insert(textures.end(), diffuseMaps.begin(), diffuseMaps.end());
   //  textures.insert(textures.end(), specularMaps.begin(), specularMaps.end());
   //}
-  return move(Mesh(move(vertices), move(indices), move(textures)));
+  return Mesh(move(vertices), move(indices), move(textures));
 }
 
 vector<Texture> &&Model::loadMaterialTextures(aiMaterial *mat,
@@ -103,8 +113,6 @@ vector<Texture> &&Model::loadMaterialTextures(aiMaterial *mat,
     Texture texture;
     texture.type = typeName;
     // texture.path = texPath;
-    cout << "ABOUT TO LOAD: " << texPath.C_Str() << endl;
-    exit(1);
     texture.id = loadAndSetupImage(texPath.C_Str());
   }
   return move(textures);
