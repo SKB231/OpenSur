@@ -51,24 +51,23 @@ void Mesh::Draw(Shader &shader) {
   uint32_t diffuseNr = 1;
   uint32_t specularNr = 1;
 
-  // for (int i = 0; i < textures.size(); i++) {
-  //   glActiveTexture(GL_TEXTURE0 + i);
+  for (int i = 0; i < textures.size(); i++) {
+    glActiveTexture(GL_TEXTURE0 + i);
 
-  //  // we have bound the ith texture in the array to the GPU shader's it Unit
-  //  // now we need to bind that texture unit to the required material sampler
-  //  string num = 0;
-  //  if (textures[i].type == "texture_diffuse") {
-  //    num = std::to_string(diffuseNr++);
-  //  } else {
-  //    num = std::to_string(specularNr++);
-  //  }
-  //  string texName = "material." + textures[i].type + num;
-  //  shader.setInt(texName, i);
-  //  glBindTexture(GL_TEXTURE_2D, textures[i].id);
-  //}
+    // we have bound the ith texture in the array to the GPU shader's it Unit
+    // now we need to bind that texture unit to the required material sampler
+    string num;
+    if (textures[i].type == "texture_diffuse") {
+      num = std::to_string(diffuseNr++);
+    } else {
+      num = std::to_string(specularNr++);
+    }
+    string texName = "material." + textures[i].type + num;
+    shader.setInt(texName, i);
+    glBindTexture(GL_TEXTURE_2D, textures[i].id);
+  }
   glActiveTexture(GL_TEXTURE0);
 
   glBindVertexArray(VAO);
-  cout << "Binding ID " << VAO << endl;
   glDrawElements(GL_TRIANGLES, indices.size(), GL_UNSIGNED_INT, 0);
 }

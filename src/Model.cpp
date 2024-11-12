@@ -76,7 +76,6 @@ Mesh Model::processMesh(aiMesh *mesh, const aiScene *scene) {
     vertices.push_back(vec);
   }
 
-
   // process indices
 
   for (uint32_t i = 0; i < mesh->mNumFaces; i++) {
@@ -87,35 +86,48 @@ Mesh Model::processMesh(aiMesh *mesh, const aiScene *scene) {
   }
 
   //// process materials
-  // if (mesh->mMaterialIndex >= 0) {
-  //   aiMaterial *material = scene->mMaterials[mesh->mMaterialIndex];
+  if (mesh->mMaterialIndex >= 0) {
+    aiMaterial *material = scene->mMaterials[mesh->mMaterialIndex];
 
-  //  // 1) load the diffuseMap textures
-  //  vector<Texture> diffuseMaps = loadMaterialTextures(
-  //      material, aiTextureType_DIFFUSE, "texture_diffuse");
+    // 1) load the diffuseMap textures
+    vector<Texture> diffuseMaps = loadMaterialTextures(
+        material, aiTextureType_DIFFUSE, "texture_diffuse");
 
-  //  // 2) load the specularMap textures
-  //  vector<Texture> specularMaps = loadMaterialTextures(
-  //      material, aiTextureType_SPECULAR, "texture_specular");
-  //  textures.insert(textures.end(), diffuseMaps.begin(), diffuseMaps.end());
-  //  textures.insert(textures.end(), specularMaps.begin(), specularMaps.end());
-  //}
+    // 2) load the specularMap textures
+    vector<Texture> specularMaps = loadMaterialTextures(
+        material, aiTextureType_SPECULAR, "texture_specular");
+    textures.insert(textures.end(), diffuseMaps.begin(), diffuseMaps.end());
+    textures.insert(textures.end(), specularMaps.begin(), specularMaps.end());
+  }
   return Mesh(move(vertices), move(indices), move(textures));
 }
 
-vector<Texture> &&Model::loadMaterialTextures(aiMaterial *mat,
-                                              aiTextureType type,
-                                              string typeName) {
+vector<Texture> Model::loadMaterialTextures(aiMaterial *mat, aiTextureType type,
+                                            string typeName) {
   vector<Texture> textures;
   for (uint32_t i = 0; i < mat->GetTextureCount(type); i++) {
     aiString texPath;
     mat->GetTexture(type, i, &texPath);
+    string fullPath = ("backpack/" + string(texPath.C_Str()));
+    bool skip = false;
+    for (Texture t : loadedTextures) {
+      if (t.filePath == fullPath) {
+        textures.push_back(t);
+        skip = true;
+        break;
+      }
+    }
+    if (skip)
+      continue;
     Texture texture;
     texture.type = typeName;
     // texture.path = texPath;
-    texture.id = loadAndSetupImage(texPath.C_Str());
+    texture.filePath = fullPath;
+    texture.id = loadAndSetupImage(fullPath.c_str());
+    textures.push_back(texture);
+    loadedTextures.push_back(texture);
   }
-  return move(textures);
+  return textures;
 }
 
 // This function loads the image using the stb library, and binds it to a
@@ -132,9 +144,10 @@ unsigned int loadAndSetupImage(const char *imageName) {
   // nr channel: color channel length
   // 0: R Channel I think?
   stbi_set_flip_vertically_on_load(true);
+  cout << "Loading " << imageName << endl;
   unsigned char *data = stbi_load(imageName, &width, &height, &nrChannel, 0);
   if (!data) {
-    std::cout << "Error loading up the image!";
+    std::cout << "Error loading up the image! ";
     return 0;
   }
 

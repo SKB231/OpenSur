@@ -77,6 +77,7 @@ unsigned int setupShaderProgram(unsigned int vertexShader,
                                 unsigned int fragmentShader);
 bool getShaderSource(std::string *vertexShaderSource, const char *filename);
 unsigned int loadAndSetupImage(const char *imageName, bool containsAlpha);
+void makeCube(unsigned int *vao);
 
 int main() {
 
@@ -120,6 +121,49 @@ int main() {
   bool prevPointLightsOn = false;
   Model backpackModel("backpack/backpack.obj");
   float background[3] = {0.5f, 0.5f, 0.5f};
+  float dirLightDirection[3] = {-0.2f, -1.0f, -0.3f};
+  float dirLightDiffuse[3] = {0.5f, 0.5f, 0.5f};
+  float dirLightSpecular[3] = {1.0f, 1.0f, 1.0f};
+  float dirLightAmbient[3] = {0.2f, 0.2f, 0.2f};
+
+  lightingShader.use();
+  lightingShader.setInt("usePointLight", 0);
+  lightingShader.setVec3(
+      "dirLight.direction",
+      std::vector<float>(dirLightDirection, dirLightDirection + 3));
+  lightingShader.setVec3(
+      "dirLight.ambient",
+      std::vector<float>(dirLightAmbient, dirLightAmbient + 3));
+  lightingShader.setVec3(
+      "dirLight.diffuse",
+      std::vector<float>(dirLightDiffuse, dirLightDiffuse + 3));
+  lightingShader.setVec3(
+      "dirLight.specular",
+      std::vector<float>(dirLightSpecular, dirLightSpecular + 3));
+  lightingShader.setFloat("material.shininess", 32.0f);
+  glEnable(GL_DEPTH_TEST);
+
+  uint32_t tinyCubeVAO;
+  makeCube(&tinyCubeVAO);
+
+  // add point lights
+  lightingShader.use();
+  for (int i = 0; i < 4; i++) {
+    // http://www.ogre3d.org/tikiwiki/tiki-index.php?page=-Point+Light+Attenuation
+    string index = "[" + std::to_string(i) + "]";
+    lightingShader.setVec3("pointLights" + index + ".position",
+                           pointLightPositions[i]);
+    lightingShader.setVec3("pointLights" + index + ".ambient",
+                           {0.2f, 0.2f, 0.2f});
+    lightingShader.setVec3("pointLights" + index + ".diffuse",
+                           {0.5f, 0.5f, 0.5f});
+
+    lightingShader.setVec3("pointLights" + index + ".specular", {1, 1, 1});
+    lightingShader.setFloat("pointLights" + index + ".constant", 1.0f);
+    lightingShader.setFloat("pointLights" + index + ".linear", 0.09f);
+    lightingShader.setFloat("pointLights" + index + ".quadratic", 0.032f);
+  }
+  lightingShader.setInt("usePointLight", 1);
 
   while (!glfwWindowShouldClose(window)) {
 
@@ -146,6 +190,10 @@ int main() {
 
     ImGui::Begin("Background Color", &showWidnow);
     ImGui::ColorEdit4("Background: ", background);
+    ImGui::ColorEdit4("Directional light DIRECTION ", dirLightDirection);
+    ImGui::ColorEdit4("Directional light DIFFUSE ", dirLightDiffuse);
+    ImGui::ColorEdit4("Directional light SPECULAR ", dirLightSpecular);
+    ImGui::ColorEdit4("Directional light AMBIENT", dirLightAmbient);
     ImGui::End();
 
     // Update time and delta time
@@ -159,26 +207,39 @@ int main() {
     std::vector<float> cameraPos = {activeCamera->cameraPos.x,
                                     activeCamera->cameraPos.y,
                                     activeCamera->cameraPos.z};
+    lightingShader.use();
+    lightingShader.setVec3("viewPos", cameraPos);
+    lightingShader.setMatrix("view", activeCamera->view);
+    lightingShader.setMatrix("projection", activeCamera->projection);
+    lightingShader.setMatrix("model", glm::mat4(1.0f));
+    lightingShader.setVec3(
+        "dirLight.direction",
+        std::vector<float>(dirLightDirection, dirLightDirection + 3));
+    lightingShader.setVec3(
+        "dirLight.ambient",
+        std::vector<float>(dirLightAmbient, dirLightAmbient + 3));
+    lightingShader.setVec3(
+        "dirLight.diffuse",
+        std::vector<float>(dirLightDiffuse, dirLightDiffuse + 3));
+    lightingShader.setVec3(
+        "dirLight.specular",
+        std::vector<float>(dirLightSpecular, dirLightSpecular + 3));
+    backpackModel.Draw(lightingShader);
+    // Draw the white cube : Update camera information, and model matrix
     simpleShader.use();
+    glBindVertexArray(tinyCubeVAO);
     simpleShader.setMatrix("view", activeCamera->view);
     simpleShader.setMatrix("projection", activeCamera->projection);
-    simpleShader.setMatrix("model", glm::mat4(1.0f));
-    backpackModel.Draw(simpleShader);
-    // Draw the white cube : Update camera information, and model matrix
-    // simpleShader.use();
-    // glBindVertexArray(VAO1);
-    // simpleShader.setMatrix("view", activeCamera->view);
-    // simpleShader.setMatrix("projection", activeCamera->projection);
-    // for (int i = 0; i < 4; i++) {
-    //   glm::mat4 modelLight = glm::mat4(1.0f);
-    //   modelLight =
-    //       glm::translate(modelLight, glm::vec3(pointLightPositions[i][0],
-    //                                            pointLightPositions[i][1],
-    //                                            pointLightPositions[i][2]));
-    //   modelLight = glm::scale(modelLight, glm::vec3(0.2f));
-    //   // simpleShader.setMatrix("model", modelLight);
-    //   glDrawArrays(GL_TRIANGLES, 0, 36);
-    // }
+    for (int i = 0; i < 4; i++) {
+      glm::mat4 modelLight = glm::mat4(1.0f);
+      modelLight =
+          glm::translate(modelLight, glm::vec3(pointLightPositions[i][0],
+                                               pointLightPositions[i][1],
+                                               pointLightPositions[i][2]));
+      modelLight = glm::scale(modelLight, glm::vec3(0.2f));
+      simpleShader.setMatrix("model", modelLight);
+      glDrawArrays(GL_TRIANGLES, 0, 36);
+    }
 
     // Render Imgui window
     ImGui::Render();
@@ -308,4 +369,82 @@ void frameBufferSizeCallback(GLFWwindow *window, int width, int height) {
   glViewport(0, 0, fwidth, fheight);
   WIDTH = fwidth;
   HEIGHT = fheight;
+}
+
+void makeCube(unsigned int *vao) {
+  // set up vertex data (and buffer(s)) and configure vertex attributes
+  // ------------------------------------------------------------------
+  float vertices[] = {
+      // positions          // normals           // texture coords
+      -0.5f, -0.5f, -0.5f, 0.0f,  0.0f,  -1.0f, 0.0f,  0.0f,  0.5f,  -0.5f,
+      -0.5f, 0.0f,  0.0f,  -1.0f, 1.0f,  0.0f,  0.5f,  0.5f,  -0.5f, 0.0f,
+      0.0f,  -1.0f, 1.0f,  1.0f,  0.5f,  0.5f,  -0.5f, 0.0f,  0.0f,  -1.0f,
+      1.0f,  1.0f,  -0.5f, 0.5f,  -0.5f, 0.0f,  0.0f,  -1.0f, 0.0f,  1.0f,
+      -0.5f, -0.5f, -0.5f, 0.0f,  0.0f,  -1.0f, 0.0f,  0.0f,
+
+      -0.5f, -0.5f, 0.5f,  0.0f,  0.0f,  1.0f,  0.0f,  0.0f,  0.5f,  -0.5f,
+      0.5f,  0.0f,  0.0f,  1.0f,  1.0f,  0.0f,  0.5f,  0.5f,  0.5f,  0.0f,
+      0.0f,  1.0f,  1.0f,  1.0f,  0.5f,  0.5f,  0.5f,  0.0f,  0.0f,  1.0f,
+      1.0f,  1.0f,  -0.5f, 0.5f,  0.5f,  0.0f,  0.0f,  1.0f,  0.0f,  1.0f,
+      -0.5f, -0.5f, 0.5f,  0.0f,  0.0f,  1.0f,  0.0f,  0.0f,
+
+      -0.5f, 0.5f,  0.5f,  -1.0f, 0.0f,  0.0f,  1.0f,  0.0f,  -0.5f, 0.5f,
+      -0.5f, -1.0f, 0.0f,  0.0f,  1.0f,  1.0f,  -0.5f, -0.5f, -0.5f, -1.0f,
+      0.0f,  0.0f,  0.0f,  1.0f,  -0.5f, -0.5f, -0.5f, -1.0f, 0.0f,  0.0f,
+      0.0f,  1.0f,  -0.5f, -0.5f, 0.5f,  -1.0f, 0.0f,  0.0f,  0.0f,  0.0f,
+      -0.5f, 0.5f,  0.5f,  -1.0f, 0.0f,  0.0f,  1.0f,  0.0f,
+
+      0.5f,  0.5f,  0.5f,  1.0f,  0.0f,  0.0f,  1.0f,  0.0f,  0.5f,  0.5f,
+      -0.5f, 1.0f,  0.0f,  0.0f,  1.0f,  1.0f,  0.5f,  -0.5f, -0.5f, 1.0f,
+      0.0f,  0.0f,  0.0f,  1.0f,  0.5f,  -0.5f, -0.5f, 1.0f,  0.0f,  0.0f,
+      0.0f,  1.0f,  0.5f,  -0.5f, 0.5f,  1.0f,  0.0f,  0.0f,  0.0f,  0.0f,
+      0.5f,  0.5f,  0.5f,  1.0f,  0.0f,  0.0f,  1.0f,  0.0f,
+
+      -0.5f, -0.5f, -0.5f, 0.0f,  -1.0f, 0.0f,  0.0f,  1.0f,  0.5f,  -0.5f,
+      -0.5f, 0.0f,  -1.0f, 0.0f,  1.0f,  1.0f,  0.5f,  -0.5f, 0.5f,  0.0f,
+      -1.0f, 0.0f,  1.0f,  0.0f,  0.5f,  -0.5f, 0.5f,  0.0f,  -1.0f, 0.0f,
+      1.0f,  0.0f,  -0.5f, -0.5f, 0.5f,  0.0f,  -1.0f, 0.0f,  0.0f,  0.0f,
+      -0.5f, -0.5f, -0.5f, 0.0f,  -1.0f, 0.0f,  0.0f,  1.0f,
+
+      -0.5f, 0.5f,  -0.5f, 0.0f,  1.0f,  0.0f,  0.0f,  1.0f,  0.5f,  0.5f,
+      -0.5f, 0.0f,  1.0f,  0.0f,  1.0f,  1.0f,  0.5f,  0.5f,  0.5f,  0.0f,
+      1.0f,  0.0f,  1.0f,  0.0f,  0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,
+      1.0f,  0.0f,  -0.5f, 0.5f,  0.5f,  0.0f,  1.0f,  0.0f,  0.0f,  0.0f,
+      -0.5f, 0.5f,  -0.5f, 0.0f,  1.0f,  0.0f,  0.0f,  1.0f};
+
+  unsigned VBO;
+  glGenVertexArrays(1, vao);
+  glBindVertexArray(*vao);
+
+  // unsigned int EBO;
+  // glGenBuffers(1, &EBO);
+  // glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
+  // glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices,
+  //              GL_STATIC_DRAW);
+
+  // Generate a buffer and assign the ID to VBO: Vertex Buffer Object.
+  glGenBuffers(1, &VBO);
+
+  // Bind the GL_ARRAY_BUFFER with the VBO Buffer.
+  glBindBuffer(GL_ARRAY_BUFFER, VBO);
+
+  // Copies vertex data to buffer we have just bound
+  glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+
+  // Setup the vertex objects for our VBOs
+  // first_arg: Position we are assigning. We set it to 0 since we are assigning
+  // the position attribute which is the 0th attribute. second_arg: How many
+  // components per vertex attribute.
+  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void *)0);
+  glEnableVertexAttribArray(0);
+  // Similarly, set the attributes of the second index, which are the colors,
+  // and enable them.
+  glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float),
+                        (void *)(3 * sizeof(float)));
+  // Lastly, set the attributes of the third index, which are the texture
+  // coordinates.
+  glEnableVertexAttribArray(1);
+  glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float),
+                        (void *)(6 * sizeof(float)));
+  glEnableVertexAttribArray(2);
 }

@@ -3,9 +3,10 @@
 #include <assimp/material.h>
 #include <assimp/postprocess.h>
 #include <assimp/scene.h>
+#include <set>
 #include <string>
 #include <vector>
-
+using std::set;
 using std::string;
 using std::vector;
 
@@ -21,7 +22,8 @@ private:
   void loadModel(string filePath);
   void processNode(aiNode *node, const aiScene *scene);
   Mesh processMesh(aiMesh *mesh, const aiScene *scene);
+  vector<Texture> loadedTextures;
 
-  vector<Texture> &&loadMaterialTextures(aiMaterial *mat, aiTextureType type,
-                                         string typeName);
+  vector<Texture> loadMaterialTextures(aiMaterial *mat, aiTextureType type,
+                                       string typeName);
 };
