@@ -30,9 +30,7 @@ void Model::loadModel(string path) {
          << import.GetErrorString() << endl;
     return;
   }
-  cout << "Model contains " << scene->mNumMeshes << " meshes" << endl;
   processNode(scene->mRootNode, scene);
-  cout << "Scene processed " << x << " meshes." << endl;
 }
 
 void Model::processNode(aiNode *node, const aiScene *scene) {

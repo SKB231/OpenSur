@@ -20,6 +20,7 @@ public:
   std::vector<Vertex> vertices;
   std::vector<uint32_t> indices;
   std::vector<Texture> textures;
+  Mesh(Mesh &&other);
   Mesh(std::vector<Vertex> &&vertices, std::vector<uint32_t> &&indices,
        std::vector<Texture> &&textures);
   void Draw(Shader &shader);

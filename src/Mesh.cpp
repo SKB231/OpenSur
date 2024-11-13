@@ -15,6 +15,16 @@ Mesh::Mesh(std::vector<Vertex> &&vertices, std::vector<uint32_t> &&indices,
   this->textures = textures;
   SetupMesh();
 }
+
+Mesh::Mesh(Mesh &&other) {
+  this->vertices = std::move(other.vertices);
+  this->indices = std::move(other.indices);
+  this->textures = std::move(other.textures);
+  this->VAO = other.VAO;
+  this->VBO = other.VBO;
+  this->EBO = other.EBO;
+}
+
 void Mesh::SetupMesh() {
   glGenVertexArrays(1, &VAO);
   glGenBuffers(1, &VBO);

@@ -150,6 +150,7 @@ int main() {
   lightingShader.use();
   for (int i = 0; i < 4; i++) {
     // http://www.ogre3d.org/tikiwiki/tiki-index.php?page=-Point+Light+Attenuation
+    string index = "[" + std::to_string(i) + "]";
     lightingShader.setVec3("pointLights" + index + ".position",
                            pointLightPositions[i]);
     lightingShader.setVec3("pointLights" + index + ".ambient",
