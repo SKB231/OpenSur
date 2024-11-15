@@ -1,3 +1,4 @@
+#include <array>
 #define GLFW_INCLUDE_NONE
 #include <GLFW/glfw3.h>
 #include <camera/camera.hpp>
@@ -16,6 +17,7 @@
 #include <shader/shader.hpp>
 #include <string>
 #define STB_IMAGE_IMPLEMENTATION
+#include <Lights.cpp>
 #include <Model/model.hpp>
 #include <format>
 #include <imgui/backends/imgui_impl_glfw.h>
@@ -107,7 +109,7 @@ int main() {
   io.ConfigFlags |=
       ImGuiConfigFlags_NavEnableGamepad;            // Enable Gamepad Controls
   io.ConfigFlags |= ImGuiConfigFlags_DockingEnable; // Enable Docking
-  io.ConfigFlags |=
+  io.ConfigFlags &=
       !ImGuiConfigFlags_ViewportsEnable; // Enable Multi-Viewport /
 
   // Setup Platform/Renderer backends
@@ -120,48 +122,40 @@ int main() {
   bool pointLightsOn = true;
   bool prevPointLightsOn = false;
   Model backpackModel("backpack/backpack.obj");
+  backpackModel.shader = &lightingShader;
   float background[3] = {0.5f, 0.5f, 0.5f};
-  float dirLightDirection[3] = {-0.2f, -1.0f, -0.3f};
-  float dirLightDiffuse[3] = {0.5f, 0.5f, 0.5f};
-  float dirLightSpecular[3] = {1.0f, 1.0f, 1.0f};
-  float dirLightAmbient[3] = {0.2f, 0.2f, 0.2f};
 
-  lightingShader.use();
-  lightingShader.setInt("usePointLight", 0);
-  lightingShader.setVec3(
-      "dirLight.direction",
-      std::vector<float>(dirLightDirection, dirLightDirection + 3));
-  lightingShader.setVec3(
-      "dirLight.ambient",
-      std::vector<float>(dirLightAmbient, dirLightAmbient + 3));
-  lightingShader.setVec3(
-      "dirLight.diffuse",
-      std::vector<float>(dirLightDiffuse, dirLightDiffuse + 3));
-  lightingShader.setVec3(
-      "dirLight.specular",
-      std::vector<float>(dirLightSpecular, dirLightSpecular + 3));
+  // ambient, diffuse, specular direction
+  DirectionalLight dirLight{
+      {-0.2f, -1.0f, -0.3f},
+      {0.2f, 0.2f, 0.2f},
+      {0.5f, 0.5f, 0.5f},
+      {1.0f, 1.0f, 1.0f},
+      false,
+  };
+  dirLight.UpdateShaderValues(&lightingShader);
+  backpackModel.UpdateShaderTransforms(activeCamera.get());
+
   lightingShader.setFloat("material.shininess", 32.0f);
   glEnable(GL_DEPTH_TEST);
 
   uint32_t tinyCubeVAO;
   makeCube(&tinyCubeVAO);
-
-  // add point lights
-  lightingShader.use();
+  PointLight pointLights[4];
   for (int i = 0; i < 4; i++) {
-    // http://www.ogre3d.org/tikiwiki/tiki-index.php?page=-Point+Light+Attenuation
-    string index = "[" + std::to_string(i) + "]";
-    lightingShader.setVec3("pointLights" + index + ".position",
-                           pointLightPositions[i]);
-    lightingShader.setVec3("pointLights" + index + ".ambient",
-                           {0.2f, 0.2f, 0.2f});
-    lightingShader.setVec3("pointLights" + index + ".diffuse",
-                           {0.5f, 0.5f, 0.5f});
-
-    lightingShader.setVec3("pointLights" + index + ".specular", {1, 1, 1});
-    lightingShader.setFloat("pointLights" + index + ".constant", 1.0f);
-    lightingShader.setFloat("pointLights" + index + ".linear", 0.09f);
-    lightingShader.setFloat("pointLights" + index + ".quadratic", 0.032f);
+    // ambient, diffuse, specular, position, constant, linear, quadratic, count,
+    // isStatic
+    vector<float> p = pointLightPositions[i];
+    pointLights[i] = PointLight{{0.2f, 0.2f, 0.2f},
+                                {0.5f, 0.5f, 0.5f},
+                                {1.0f, 1.0f, 1.0f},
+                                {p[0], p[1], p[2]},
+                                1.0f,
+                                0.09f,
+                                0.032f,
+                                i,
+                                false};
+    pointLights[i].UpdateShaderValues(&lightingShader);
   }
   lightingShader.setInt("usePointLight", 1);
 
@@ -170,32 +164,22 @@ int main() {
     // Handle any polled user inputs:
     processInput(window);
 
-    ImGui_ImplOpenGL3_NewFrame();
-    ImGui_ImplGlfw_NewFrame();
-    ImGui::NewFrame();
-    bool showDirLightWind = true;
-    if (pointLightsOn != prevPointLightsOn) {
-      prevPointLightsOn = pointLightsOn;
-      // lightingShader.setInt("usePointLight", pointLightsOn);
+    // Imgui Init for while loop
+    {
+      ImGui_ImplOpenGL3_NewFrame();
+      ImGui_ImplGlfw_NewFrame();
+      ImGui::NewFrame();
+      if (show_demo_window)
+        ImGui::ShowDemoWindow(&show_demo_window);
     }
-    // lightingShader.setVec3(
-    //  "dirLight.direction",
-    //  std::vector<float>(dirLightDirection, dirLightDirection + 3));
-    if (show_demo_window)
-      ImGui::ShowDemoWindow(&show_demo_window);
+
     bool showWidnow = true;
     activeCamera->DisplayCameraProperties();
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glClearColor(background[0], background[1], background[2], 1);
 
-    ImGui::Begin("Background Color", &showWidnow);
-    ImGui::ColorEdit4("Background: ", background);
-    ImGui::ColorEdit4("Directional light DIRECTION ", dirLightDirection);
-    ImGui::ColorEdit4("Directional light DIFFUSE ", dirLightDiffuse);
-    ImGui::ColorEdit4("Directional light SPECULAR ", dirLightSpecular);
-    ImGui::ColorEdit4("Directional light AMBIENT", dirLightAmbient);
-    ImGui::End();
-
+    dirLight.DisplayWindow();
+    backpackModel.DisplayWindow();
     // Update time and delta time
     float timeValue = glfwGetTime();
     deltaTime = timeValue - lastTime;
@@ -207,24 +191,11 @@ int main() {
     std::vector<float> cameraPos = {activeCamera->cameraPos.x,
                                     activeCamera->cameraPos.y,
                                     activeCamera->cameraPos.z};
-    lightingShader.use();
-    lightingShader.setVec3("viewPos", cameraPos);
-    lightingShader.setMatrix("view", activeCamera->view);
-    lightingShader.setMatrix("projection", activeCamera->projection);
-    lightingShader.setMatrix("model", glm::mat4(1.0f));
-    lightingShader.setVec3(
-        "dirLight.direction",
-        std::vector<float>(dirLightDirection, dirLightDirection + 3));
-    lightingShader.setVec3(
-        "dirLight.ambient",
-        std::vector<float>(dirLightAmbient, dirLightAmbient + 3));
-    lightingShader.setVec3(
-        "dirLight.diffuse",
-        std::vector<float>(dirLightDiffuse, dirLightDiffuse + 3));
-    lightingShader.setVec3(
-        "dirLight.specular",
-        std::vector<float>(dirLightSpecular, dirLightSpecular + 3));
+
+    dirLight.UpdateShaderValues(&lightingShader);
+    backpackModel.UpdateShaderTransforms(activeCamera.get());
     backpackModel.Draw(lightingShader);
+
     // Draw the white cube : Update camera information, and model matrix
     simpleShader.use();
     glBindVertexArray(tinyCubeVAO);
@@ -242,27 +213,36 @@ int main() {
     }
 
     // Render Imgui window
-    ImGui::Render();
-    ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+    // Swap color buffer
+    // poll events
+    {
+      ImGui::Render();
+      ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
-    // Update and Render additional Platform Windows
-    // (Platform functions may change the current OpenGL context, so we
-    // The way I understand it is if the window is weird, this will handle it
-    if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable) {
-      GLFWwindow *backup_current_context = glfwGetCurrentContext();
-      ImGui::UpdatePlatformWindows();
-      ImGui::RenderPlatformWindowsDefault();
-      glfwMakeContextCurrent(backup_current_context);
+      // Update and Render additional Platform Windows
+      // (Platform functions may change the current OpenGL context, so we
+      // The way I understand it is if the window is weird, this will handle it
+      if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable) {
+        GLFWwindow *backup_current_context = glfwGetCurrentContext();
+        ImGui::UpdatePlatformWindows();
+        ImGui::RenderPlatformWindowsDefault();
+        glfwMakeContextCurrent(backup_current_context);
+      }
+
+      // Swap the color buffer with the current buffer being displayed.
+      glfwSwapBuffers(window);
+      glfwPollEvents();
     }
-
-    // Swap the color buffer with the current buffer being displayed.
-    glfwSwapBuffers(window);
-    glfwPollEvents();
   }
-  ImGui_ImplOpenGL3_Shutdown();
-  ImGui_ImplGlfw_Shutdown();
-  ImGui::DestroyContext();
-  glfwTerminate();
+
+  // Imgui cleanup
+  // glfw cleanup
+  {
+    ImGui_ImplOpenGL3_Shutdown();
+    ImGui_ImplGlfw_Shutdown();
+    ImGui::DestroyContext();
+    glfwTerminate();
+  }
   return 0;
 }
 
@@ -416,12 +396,6 @@ void makeCube(unsigned int *vao) {
   glGenVertexArrays(1, vao);
   glBindVertexArray(*vao);
 
-  // unsigned int EBO;
-  // glGenBuffers(1, &EBO);
-  // glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
-  // glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices,
-  //              GL_STATIC_DRAW);
-
   // Generate a buffer and assign the ID to VBO: Vertex Buffer Object.
   glGenBuffers(1, &VBO);
 
@@ -448,3 +422,15 @@ void makeCube(unsigned int *vao) {
                         (void *)(6 * sizeof(float)));
   glEnableVertexAttribArray(2);
 }
+
+/*
+Model lifecycle:
+- Model meshes and textures configured
+- Set Shader
+- For each loop iteration:
+  - Use()
+  - Set transforms for the shader (Internal)
+  - Set camera information (Send camera) for the shader
+  - Set Directional light information (Send lighting information through main)
+  - Draw()
+*/

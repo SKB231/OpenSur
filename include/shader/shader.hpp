@@ -6,6 +6,8 @@
 #include <string>
 #include <vector>
 
+class Camera;
+
 class Shader {
 public:
   // the program ID
@@ -22,9 +24,12 @@ public:
   void setBool(const std::string &name, bool value) const;
   void setInt(const std::string &name, int value) const;
   void setFloat(const std::string &name, float value) const;
-  void setVec4(const std::string &name, std::vector<float> value) const;
-  void setVec3(const std::string &name, std::vector<float> value) const;
-  void setMatrix(const std::string &name, glm::mat4) const;
+  void setVec4(const std::string &name, glm::vec4 value) const;
+  void setVec3(const std::string &name, glm::vec3 value) const;
+  void setVec4(const std::string &name, float *value) const;
+  void setVec3(const std::string &name, float *value) const;
+  void setMatrix(const std::string &name, glm::mat4 matrix) const;
+  void updateMVP(const Camera &cam, glm::mat4 modelMatrix);
 
 private:
   unsigned int setupShader(GLenum shaderType, const std::string &shaderSource);

@@ -16,8 +16,7 @@ std::unordered_map<GLenum, const char *> shaderName = {
 
 #endif // !GLOBALS
 
-Shader ::Shader(const std::string &vertexPath,
-                const std::string &fragmentPath) {
+Shader::Shader(const std::string &vertexPath, const std::string &fragmentPath) {
   std::string vertexShaderSource, fragmentShaderSrc;
 
   // Vertex Shader
@@ -61,32 +60,21 @@ void Shader::setFloat(const std::string &name, float value) const {
   glUniform1f(glGetUniformLocation(ID, name.c_str()), value);
 }
 
-void Shader::setVec3(const std::string &name, std::vector<float> value) const {
-  if (value.size() < 3) {
-    std::cout << "Contains: " << value.size() << std::endl;
-    for (auto v : value) {
-      std::cout << v << ", ";
-    }
-    std::cout << std::endl;
-    std::cout << "Cannot assign to a unifrom vec3f using a vector only "
-                 "containing less than 3 values"
-              << std::endl;
-  }
+void Shader::setVec3(const std::string &name, glm::vec3 value) const {
 
   glUniform3f(glGetUniformLocation(ID, name.c_str()), value[0], value[1],
               value[2]);
 }
-void Shader::setVec4(const std::string &name, std::vector<float> value) const {
-  if (value.size() <= 3) {
-    std::cout << "Cannot assign to a unifrom vec4f using a vector only "
-                 "containing 3 values"
-              << std::endl;
-    for (auto v : value) {
-      std::cout << v << ", ";
-    }
-    std::cout << std::endl;
-  }
+void Shader::setVec4(const std::string &name, glm::vec4 value) const {
+  glUniform4f(glGetUniformLocation(ID, name.c_str()), value[0], value[1],
+              value[2], value[3]);
+}
+void Shader::setVec3(const std::string &name, float *value) const {
 
+  glUniform3f(glGetUniformLocation(ID, name.c_str()), value[0], value[1],
+              value[2]);
+}
+void Shader::setVec4(const std::string &name, float *value) const {
   glUniform4f(glGetUniformLocation(ID, name.c_str()), value[0], value[1],
               value[2], value[3]);
 }

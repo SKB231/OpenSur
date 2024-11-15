@@ -3,17 +3,30 @@
 #include <assimp/material.h>
 #include <assimp/postprocess.h>
 #include <assimp/scene.h>
+#include <memory>
 #include <set>
 #include <string>
 #include <vector>
-using std::set;
 using std::string;
 using std::vector;
 
 class Model {
 public:
-  Model(string filePath) { loadModel(filePath); }
+  Model(string filePath) {
+    loadModel(filePath);
+    position = {0, 0, 0};
+  }
   void Draw(Shader &shader);
+  void DisplayWindow();
+  string modelName = "empty";
+  Shader *shader;
+
+  // Transforms
+  glm::vec3 position;
+
+  void UpdateShaderTransforms(Camera *camera);
+  void UpdateLightingData(); // DirectionalLight dirLight, vector<PointLight>
+                             // pointLights
 
 private:
   vector<Mesh> meshes; // to be filled when processing tree

@@ -1,7 +1,11 @@
 #include "assimp/material.h"
 #include "assimp/postprocess.h"
 #include "assimp/scene.h"
+#include <MacTypes.h>
 #include <Model/model.hpp>
+#include <camera/camera.hpp>
+#include <glm/ext/matrix_transform.hpp>
+#include <imgui/imgui.h>
 #include <iostream>
 #include <stb_image/stb_image.h>
 #include <string>
@@ -30,7 +34,9 @@ void Model::loadModel(string path) {
          << import.GetErrorString() << endl;
     return;
   }
+  directory = path.substr(0, path.find_last_of('/'));
   processNode(scene->mRootNode, scene);
+  modelName = path;
 }
 
 void Model::processNode(aiNode *node, const aiScene *scene) {
@@ -75,7 +81,6 @@ Mesh Model::processMesh(aiMesh *mesh, const aiScene *scene) {
   }
 
   // process indices
-
   for (uint32_t i = 0; i < mesh->mNumFaces; i++) {
     aiFace face = mesh->mFaces[i];
     for (uint32_t j = 0; j < face.mNumIndices; j++) {
@@ -84,20 +89,27 @@ Mesh Model::processMesh(aiMesh *mesh, const aiScene *scene) {
   }
 
   //// process materials
+  aiColor3D colorDiffuse(0), colorSpecular(0);
   if (mesh->mMaterialIndex >= 0) {
     aiMaterial *material = scene->mMaterials[mesh->mMaterialIndex];
 
     // 1) load the diffuseMap textures
     vector<Texture> diffuseMaps = loadMaterialTextures(
         material, aiTextureType_DIFFUSE, "texture_diffuse");
+    material->Get(AI_MATKEY_COLOR_DIFFUSE, colorDiffuse);
 
     // 2) load the specularMap textures
     vector<Texture> specularMaps = loadMaterialTextures(
         material, aiTextureType_SPECULAR, "texture_specular");
+    material->Get(AI_MATKEY_COLOR_SPECULAR, colorSpecular);
     textures.insert(textures.end(), diffuseMaps.begin(), diffuseMaps.end());
     textures.insert(textures.end(), specularMaps.begin(), specularMaps.end());
   }
-  return Mesh(move(vertices), move(indices), move(textures));
+  BaseColors base{};
+  base.diffuseBase = glm::vec3(colorDiffuse.r, colorDiffuse.g, colorDiffuse.b);
+  base.specularBase =
+      glm::vec3(colorSpecular.r, colorSpecular.g, colorSpecular.b);
+  return Mesh(move(vertices), move(indices), move(textures), base);
 }
 
 vector<Texture> Model::loadMaterialTextures(aiMaterial *mat, aiTextureType type,
@@ -106,7 +118,10 @@ vector<Texture> Model::loadMaterialTextures(aiMaterial *mat, aiTextureType type,
   for (uint32_t i = 0; i < mat->GetTextureCount(type); i++) {
     aiString texPath;
     mat->GetTexture(type, i, &texPath);
-    string fullPath = ("backpack/" + string(texPath.C_Str()));
+    aiTextureOp op;
+    mat->Get(AI_MATKEY_TEXOP(type, i), op);
+
+    string fullPath = (directory + '/' + string(texPath.C_Str()));
     bool skip = false;
     for (Texture t : loadedTextures) {
       if (t.filePath == fullPath) {
@@ -145,7 +160,8 @@ unsigned int loadAndSetupImage(const char *imageName) {
   cout << "Loading " << imageName << endl;
   unsigned char *data = stbi_load(imageName, &width, &height, &nrChannel, 0);
   if (!data) {
-    std::cout << "Error loading up the image! ";
+    std::cout << "Error loading up the image! Image has " << nrChannel
+              << " Channels " << std::endl;
     return 0;
   }
 
@@ -163,4 +179,31 @@ unsigned int loadAndSetupImage(const char *imageName) {
 
   stbi_image_free(data);
   return texture;
+}
+
+void Model::DisplayWindow() {
+  if (modelName == "empty")
+    return;
+  bool displayWindow = true;
+  ImGui::Begin(("Model: " + modelName).c_str(), &displayWindow);
+  ImGui::Text("Transform");
+  ImGui::Text("Position");
+  ImGui::Text("Rotation");
+  ImGui::Text("Scale");
+  ImGui::Text("Materials");
+  ImGui::End();
+}
+
+void Model::UpdateShaderTransforms(Camera *camera) {
+  if (!shader) {
+    std::cerr << "No Shader to update!" << std::endl;
+    return;
+  }
+  shader->use();
+  glm::mat4 modelMat(1.0f);
+  modelMat = glm::translate(modelMat, this->position);
+  shader->setMatrix("model", modelMat);
+  shader->setMatrix("view", camera->view);
+  shader->setVec3("viewPos", camera->cameraPos);
+  shader->setMatrix("projection", camera->projection);
 }
