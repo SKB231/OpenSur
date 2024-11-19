@@ -43,6 +43,7 @@ float lastTime = 0.0f;
 float deltaTime = 1.0f;
 bool firstMouse = true;
 glm::vec3 lightPos(1.2f, 1.0f, 2.0f);
+uint32_t uvTexture;
 
 bool enableControl = true;
 bool displayCursor = false;
@@ -96,9 +97,13 @@ int main() {
   // setup shaders
   Shader simpleShader("vertexShader.glsl", "whiteFrag.glsl");
   Shader lightingShader("vertexShader.glsl", "simpleLight.glsl");
+  Shader textureShader("vertexShader.glsl", "textureShader.glsl");
 
   Camera::InitCallbacks(window);
 
+  cout << "Before UV Load: " << uvTexture << " ";
+  uvTexture = loadAndSetupImage("uvMap.png", false);
+  cout << "=> " << uvTexture << endl;
   // Imgui Context init:
   IMGUI_CHECKVERSION();
   ImGui::CreateContext();
@@ -121,9 +126,10 @@ int main() {
   // RenderLoop:
   bool pointLightsOn = true;
   bool prevPointLightsOn = false;
-  Model backpackModel("backpack/backpack.obj");
+  Model backpackModel("sponza/sponza.obj");
+  backpackModel.scale = {0.2, 0.2, 0.2};
   backpackModel.shader = &lightingShader;
-  float background[3] = {0.5f, 0.5f, 0.5f};
+  float background[3] = {0.0f, 0.0f, 0.0f};
 
   // ambient, diffuse, specular direction
   DirectionalLight dirLight{
@@ -141,6 +147,10 @@ int main() {
 
   uint32_t tinyCubeVAO;
   makeCube(&tinyCubeVAO);
+
+  uint32_t referenceCube;
+  makeCube(&referenceCube);
+
   PointLight pointLights[4];
   for (int i = 0; i < 4; i++) {
     // ambient, diffuse, specular, position, constant, linear, quadratic, count,
@@ -180,7 +190,7 @@ int main() {
 
     dirLight.DisplayWindow();
     backpackModel.DisplayWindow();
-    // Update time and delta time
+    //  Update time and delta time
     float timeValue = glfwGetTime();
     deltaTime = timeValue - lastTime;
     lastTime = timeValue;
@@ -196,17 +206,25 @@ int main() {
     backpackModel.UpdateShaderTransforms(activeCamera.get());
     backpackModel.Draw(lightingShader);
 
+    glm::mat4 genericModel = glm::mat4(1.0f);
+    // Reference Cube:
+    glBindVertexArray(referenceCube);
+    textureShader.use();
+    textureShader.setMatrix("view", activeCamera->view);
+    textureShader.setMatrix("projection", activeCamera->projection);
+    textureShader.setMatrix("model", genericModel);
+    glDrawArrays(GL_TRIANGLES, 0, 36);
+
     // Draw the white cube : Update camera information, and model matrix
     simpleShader.use();
     glBindVertexArray(tinyCubeVAO);
     simpleShader.setMatrix("view", activeCamera->view);
     simpleShader.setMatrix("projection", activeCamera->projection);
     for (int i = 0; i < 4; i++) {
-      glm::mat4 modelLight = glm::mat4(1.0f);
-      modelLight =
-          glm::translate(modelLight, glm::vec3(pointLightPositions[i][0],
-                                               pointLightPositions[i][1],
-                                               pointLightPositions[i][2]));
+      glm::mat4 modelLight =
+          glm::translate(genericModel, glm::vec3(pointLightPositions[i][0],
+                                                 pointLightPositions[i][1],
+                                                 pointLightPositions[i][2]));
       modelLight = glm::scale(modelLight, glm::vec3(0.2f));
       simpleShader.setMatrix("model", modelLight);
       glDrawArrays(GL_TRIANGLES, 0, 36);
@@ -317,7 +335,6 @@ GLFWwindow *setupWindow() {
 }
 
 void processInput(GLFWwindow *window) {
-  const float cameraSpeed = 2.5f * deltaTime;
   if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
     glfwSetWindowShouldClose(window, 1);
 

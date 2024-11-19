@@ -15,6 +15,7 @@ public:
   Model(string filePath) {
     loadModel(filePath);
     position = {0, 0, 0};
+    scale = {1, 1, 1};
   }
   void Draw(Shader &shader);
   void DisplayWindow();
@@ -23,6 +24,7 @@ public:
 
   // Transforms
   glm::vec3 position;
+  glm::vec3 scale;
 
   void UpdateShaderTransforms(Camera *camera);
   void UpdateLightingData(); // DirectionalLight dirLight, vector<PointLight>

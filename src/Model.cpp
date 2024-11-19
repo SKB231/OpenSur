@@ -25,8 +25,7 @@ void Model::Draw(Shader &shader) {
 }
 void Model::loadModel(string path) {
   Assimp::Importer import;
-  const aiScene *scene =
-      import.ReadFile(path, aiProcess_Triangulate | aiProcess_FlipUVs);
+  const aiScene *scene = import.ReadFile(path, aiProcess_Triangulate);
 
   if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE ||
       !scene->mRootNode) {
@@ -69,6 +68,7 @@ Mesh Model::processMesh(aiMesh *mesh, const aiScene *scene) {
 
     // mTextureCoords[0] applies for the entire mesh. It checks if it has any
     // texture coordinates for the entire mesh
+
     if (mesh->mTextureCoords[0]) {
       glm::vec2 texCoords =
           glm::vec2(mesh->mTextureCoords[0][i].x, mesh->mTextureCoords[0][i].y);
@@ -137,6 +137,7 @@ vector<Texture> Model::loadMaterialTextures(aiMaterial *mat, aiTextureType type,
     // texture.path = texPath;
     texture.filePath = fullPath;
     texture.id = loadAndSetupImage(fullPath.c_str());
+    cout << "ID is => " << texture.id << endl;
     textures.push_back(texture);
     loadedTextures.push_back(texture);
   }
@@ -164,9 +165,13 @@ unsigned int loadAndSetupImage(const char *imageName) {
               << " Channels " << std::endl;
     return 0;
   }
-
-  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0,
-               containsAlpha ? GL_RGBA : GL_RGB, GL_UNSIGNED_BYTE, data);
+  if (nrChannel > 3) {
+    cout << "Alpha channel in texture! " << endl;
+    containsAlpha = true;
+  }
+  glTexImage2D(GL_TEXTURE_2D, 0, containsAlpha ? GL_RGBA : GL_RGB, width,
+               height, 0, containsAlpha ? GL_RGBA : GL_RGB, GL_UNSIGNED_BYTE,
+               data);
   glGenerateMipmap(GL_TEXTURE_2D);
 
   // set the texture wrapping/filtering options (on the currently bound
@@ -202,6 +207,7 @@ void Model::UpdateShaderTransforms(Camera *camera) {
   shader->use();
   glm::mat4 modelMat(1.0f);
   modelMat = glm::translate(modelMat, this->position);
+  modelMat = glm::scale(modelMat, scale);
   shader->setMatrix("model", modelMat);
   shader->setMatrix("view", camera->view);
   shader->setVec3("viewPos", camera->cameraPos);

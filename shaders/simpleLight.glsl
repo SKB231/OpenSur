@@ -5,6 +5,8 @@ in vec3 FragPos;
 in vec3 Normal;
 in vec2 TexCoord;
 
+uniform sampler2D uvTexture;
+
 struct DiffuseTexture{
     sampler2D texture;
     float blend;
@@ -74,25 +76,34 @@ vec3 CalcDirLight(DirLight light,vec3 normal,vec3 viewDir);
 vec3 CalcPointLight(PointLight light,vec3 normal,vec3 fragPos,vec3 viewDir);
 
 vec3 evaluateDiffuse(){
-    vec3 baseColor=material.baseDiffuse;
-    //vec3 baseColor=vec3(1);
+    
+    vec4 baseColor=vec4(material.baseDiffuse,1);
+    //if(texColor.a<.5)
+    //discard;
+    
     for(int i=0;i<material.diffuseCount;i++){
-        vec3 texColor=vec3(texture(material.diffuseTexture[i].texture,TexCoord));
-        //texColor*=material.diffuseTexture[i].blend;
+        vec4 texColor=vec4(texture(material.diffuseTexture[i].texture,TexCoord));
         baseColor*=texColor;
+        if(baseColor.a<.5)
+        discard;
+        //baseColor+=texColor;
     }
-    return baseColor;
+    return vec3(baseColor);
 }
 
 vec3 evaluateSpecular(){
-    //vec3 baseColor=material.baseSpecular;
-    vec3 baseColor=vec3(1);
+    vec4 baseColor=vec4(material.baseSpecular,1);
+    //if(texColor.a<.5)
+    //discard;
+    
     for(int i=0;i<material.specularCount;i++){
-        vec3 texColor=vec3(texture(material.specularTexture[i].texture,TexCoord));
-        //texColor*=material.specular[i].blend;
+        vec4 texColor=vec4(texture(material.specularTexture[i].texture,TexCoord));
         baseColor*=texColor;
+        if(baseColor.a<.5)
+        discard;
+        //baseColor+=texColor;
     }
-    return baseColor;
+    return vec3(baseColor);
 }
 /*
 struct DiffuseTexture{
@@ -121,11 +132,10 @@ void main()
     
     // phase 1: Directional light
     vec3 result=CalcDirLight(dirLight,norm,viewDir);
-    //vec3 result=vec3(0,0,0);
-    // phase 2: Point Lights
+    //phase 2: Point Lights
     if(usePointLight==1){
-        for(int i=0;i<4;i++)
-        result+=CalcPointLight(pointLights[i],norm,FragPos,viewDir);
+           for(int i=0;i<4;i++)
+           result+=CalcPointLight(pointLights[i],norm,FragPos,viewDir);
     }
     
     FragColor=vec4(result,1);
@@ -193,6 +203,7 @@ void main()
     
 }
 vec3 CalcDirLight(DirLight light,vec3 normal,vec3 viewDir){
+    
     //vec4 diffuseSample=texture(material.texture_diffuse1,TexCoord);
     //vec4 specularSample=texture(material.texture_specular1,TexCoord);
     vec4 diffuseSample=vec4(evaluateDiffuse(),1);
@@ -224,8 +235,8 @@ vec3 CalcPointLight(PointLight light,vec3 normal,vec3 fragPos,vec3 viewDir){
     // vec4 specularSample=texture(material.texture_specular1,TexCoord);
     vec4 diffuseSample=vec4(evaluateDiffuse(),1);
     vec4 specularSample=vec4(evaluateSpecular(),1);
-    //vec4 diffuseSample=vec4(.5);
-    //vec4 specularSample=vec4(1);
+    //vec4 diffuseSample=vec4(1);
+    //vec4 specularSample=vec4(.5);
     
     float distance=length(light.position-fragPos);
     float attenuation=1./(light.constant+light.linear*distance+light.quadratic*(distance*distance));

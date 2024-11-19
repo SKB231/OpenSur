@@ -63,9 +63,11 @@ void Mesh::SetupMesh() {
 void Mesh::Draw(Shader &shader) {
   uint32_t diffuseNr = 0;
   uint32_t specularNr = 0;
-  shader.use();
+  // set the first texture to be the test UV
+  glActiveTexture(GL_TEXTURE0);
+  glBindTexture(GL_TEXTURE_2D, uvTexture);
   for (int i = 0; i < textures.size(); i++) {
-    glActiveTexture(GL_TEXTURE0 + i);
+    glActiveTexture(GL_TEXTURE0 + i + 1);
     // we have bound the ith texture in the array to the GPU shader's it Unit
     // now we need to bind that texture unit to the required material sampler
     string index;
@@ -75,12 +77,9 @@ void Mesh::Draw(Shader &shader) {
       index = "specularTexture[" + std::to_string(specularNr++) + "].texture";
     }
     string texName = "material." + index;
-    // cout << "Assigning to " << texName << " the id of " << textures[i].id
-    //      << endl;
-    shader.setInt(texName, i);
+    shader.setInt(texName, i + 1);
     glBindTexture(GL_TEXTURE_2D, textures[i].id);
   }
-  glActiveTexture(GL_TEXTURE0);
   shader.setInt("material.diffuseCount", diffuseNr);
   shader.setInt("material.specularCount", specularNr);
   // glm::vec3 bTest = {0.8, 0.8, 0.8};

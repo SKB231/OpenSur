@@ -3,6 +3,8 @@
 #include <string>
 #include <vector>
 
+extern uint32_t uvTexture;
+
 struct Vertex {
   glm::vec3 Position;
   glm::vec3 Normal;
