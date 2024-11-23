@@ -15,8 +15,8 @@ extern bool enableControl;
 
 Camera::Camera(GLFWwindow *window) {
   view = glm::mat4(1.0f);
-  projection =
-      glm::perspective(glm::radians(fov), (float)WIDTH / HEIGHT, 0.1f, 1000.0f);
+  projection = glm::perspective(glm::radians(fov), (float)WIDTH / HEIGHT,
+                                this->nearPlane, this->farPlane);
 }
 
 void Camera::UpdateCamera() {
@@ -26,7 +26,7 @@ void Camera::UpdateCamera() {
   cameraFront = glm::normalize(direction);
   view = glm::lookAt(cameraPos, cameraPos + cameraFront, cameraUp);
   projection =
-      glm::perspective(glm::radians(fov), float(WIDTH) / HEIGHT, 0.1f, 1000.0f);
+      glm::perspective(glm::radians(fov), float(WIDTH) / HEIGHT, 0.1f, 100.0f);
 }
 void Camera::KeyInput(GLFWwindow *window) {
   if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)

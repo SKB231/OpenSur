@@ -68,6 +68,8 @@ struct DirLight{
     vec3 specular;
 };
 uniform DirLight dirLight;
+uniform float nearPlane=.1;
+uniform float farPlane=100.;
 
 uniform Material material;
 uniform vec3 viewPos;
@@ -75,8 +77,14 @@ uniform vec3 viewPos;
 vec3 CalcDirLight(DirLight light,vec3 normal,vec3 viewDir);
 vec3 CalcPointLight(PointLight light,vec3 normal,vec3 fragPos,vec3 viewDir);
 
+float linearDepth(){
+    float dist=gl_FragCoord.z;
+    float ndc=2.*dist-1.;
+    float linearDepth=(2*nearPlane)/(nearPlane+farPlane-ndc*(farPlane-nearPlane));
+    return linearDepth;
+}
+
 vec3 evaluateDiffuse(){
-    
     vec4 baseColor=vec4(material.baseDiffuse,1);
     //if(texColor.a<.5)
     //discard;
@@ -134,8 +142,8 @@ void main()
     vec3 result=CalcDirLight(dirLight,norm,viewDir);
     //phase 2: Point Lights
     if(usePointLight==1){
-           for(int i=0;i<4;i++)
-           result+=CalcPointLight(pointLights[i],norm,FragPos,viewDir);
+        for(int i=0;i<4;i++)
+        result+=CalcPointLight(pointLights[i],norm,FragPos,viewDir);
     }
     
     FragColor=vec4(result,1);
@@ -203,7 +211,6 @@ void main()
     
 }
 vec3 CalcDirLight(DirLight light,vec3 normal,vec3 viewDir){
-    
     //vec4 diffuseSample=texture(material.texture_diffuse1,TexCoord);
     //vec4 specularSample=texture(material.texture_specular1,TexCoord);
     vec4 diffuseSample=vec4(evaluateDiffuse(),1);

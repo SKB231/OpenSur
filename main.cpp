@@ -81,6 +81,7 @@ unsigned int setupShaderProgram(unsigned int vertexShader,
 bool getShaderSource(std::string *vertexShaderSource, const char *filename);
 unsigned int loadAndSetupImage(const char *imageName, bool containsAlpha);
 void makeCube(unsigned int *vao);
+Shader *outlineShader;
 
 int main() {
 
@@ -98,6 +99,8 @@ int main() {
   Shader simpleShader("vertexShader.glsl", "whiteFrag.glsl");
   Shader lightingShader("vertexShader.glsl", "simpleLight.glsl");
   Shader textureShader("vertexShader.glsl", "textureShader.glsl");
+  Shader oShader("outlineVertex.glsl", "whiteFrag.glsl");
+  outlineShader = &oShader;
 
   Camera::InitCallbacks(window);
 
@@ -126,10 +129,10 @@ int main() {
   // RenderLoop:
   bool pointLightsOn = true;
   bool prevPointLightsOn = false;
-  Model backpackModel("sponza/sponza.obj");
-  backpackModel.scale = {0.2, 0.2, 0.2};
+  Model backpackModel("Sponza/Sponza.obj");
+  backpackModel.scale = {0.02, 0.02, 0.02};
   backpackModel.shader = &lightingShader;
-  float background[3] = {0.0f, 0.0f, 0.0f};
+  float background[3] = {0.2f, 0.2f, 0.2f};
 
   // ambient, diffuse, specular direction
   DirectionalLight dirLight{
@@ -185,7 +188,7 @@ int main() {
 
     bool showWidnow = true;
     activeCamera->DisplayCameraProperties();
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
     glClearColor(background[0], background[1], background[2], 1);
 
     dirLight.DisplayWindow();
@@ -204,16 +207,17 @@ int main() {
 
     dirLight.UpdateShaderValues(&lightingShader);
     backpackModel.UpdateShaderTransforms(activeCamera.get());
-    backpackModel.Draw(lightingShader);
+    backpackModel.Draw(lightingShader, activeCamera.get());
 
     glm::mat4 genericModel = glm::mat4(1.0f);
-    // Reference Cube:
-    glBindVertexArray(referenceCube);
-    textureShader.use();
-    textureShader.setMatrix("view", activeCamera->view);
-    textureShader.setMatrix("projection", activeCamera->projection);
-    textureShader.setMatrix("model", genericModel);
-    glDrawArrays(GL_TRIANGLES, 0, 36);
+    // // Reference Cube:
+    // glBindVertexArray(referenceCube);
+    // textureShader.use();
+    // textureShader.setMatrix("view", activeCamera->view);
+    // textureShader.setMatrix("projection", activeCamera->projection);
+    // glm::mat4 upOffset = glm::translate(genericModel, glm::vec3(0, 0.5, 0));
+    // textureShader.setMatrix("model", upOffset);
+    // glDrawArrays(GL_TRIANGLES, 0, 36);
 
     // Draw the white cube : Update camera information, and model matrix
     simpleShader.use();

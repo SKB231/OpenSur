@@ -1,6 +1,7 @@
 #include "assimp/material.h"
 #include "assimp/postprocess.h"
 #include "assimp/scene.h"
+#include "shader/shader.hpp"
 #include <MacTypes.h>
 #include <Model/model.hpp>
 #include <camera/camera.hpp>
@@ -15,17 +16,58 @@ using std::endl;
 using std::move;
 using std::string;
 using std::vector;
+
 static int x = 0;
 unsigned int loadAndSetupImage(const char *imageName);
+extern Shader *outlineShader;
 
-void Model::Draw(Shader &shader) {
-  for (int i = 0; i < meshes.size(); i++) {
-    meshes[i].Draw(shader);
+void Model::Draw(Shader &shader, Camera *camera) {
+  glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
+  if (!hasOutline) {
+    for (Mesh &m : meshes) {
+      m.Draw(shader);
+    }
+    return;
   }
+
+  /**
+  Draw Outline:
+    - First fill up the stencil buffer with the object in view space. The
+  stencil shouldn't filter anything this time.
+    - Use this filled up stencil buffer to create an outline
+  */
+  glEnable(GL_STENCIL_TEST);
+  glStencilFunc(GL_ALWAYS, 1, 0xff); // always pass any fragments
+  glStencilMask(0xFF);
+  for (Mesh &m : meshes) {
+    m.Draw(shader);
+  }
+
+  glStencilFunc(GL_NOTEQUAL, 1, 0xff); // only pass fragments not in 1
+  glStencilMask(0x00);                 // No writing this time
+  glDisable(GL_DEPTH_TEST);
+  glm::vec3 oldScale = this->scale;
+  // scale += 0.02;
+  UpdateShaderTransforms(camera, outlineShader);
+  if (!outlineShader) {
+    cout << "NO OUTLINE SHADER!";
+    exit(1);
+  }
+  outlineShader->setFloat("outlineAmt", 1.0f);
+  for (Mesh &m : meshes) {
+    m.Draw(*outlineShader);
+  }
+  // scale -= 0.02;
+
+  // reset stencil setup
+  glStencilMask(0xff);
+  glEnable(GL_DEPTH_TEST);
+  glStencilFunc(GL_ALWAYS, 1, 0xff);
 }
-void Model::loadModel(string path) {
+void Model::loadModel(string path, bool shouldFlipUVs) {
   Assimp::Importer import;
-  const aiScene *scene = import.ReadFile(path, aiProcess_Triangulate);
+  const aiScene *scene = import.ReadFile(
+      path, aiProcess_Triangulate | ((shouldFlipUVs) ? aiProcess_FlipUVs : 0));
 
   if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE ||
       !scene->mRootNode) {
@@ -186,20 +228,28 @@ unsigned int loadAndSetupImage(const char *imageName) {
   return texture;
 }
 
+string printVec3(glm::vec3 vec) {
+  return "{" + std::to_string(vec.x) + ", " + std::to_string(vec.y) + ", " +
+         std::to_string(vec.z) + "} ";
+}
 void Model::DisplayWindow() {
   if (modelName == "empty")
     return;
   bool displayWindow = true;
   ImGui::Begin(("Model: " + modelName).c_str(), &displayWindow);
   ImGui::Text("Transform");
-  ImGui::Text("Position");
+  ImGui::Text("%s", ("Position" + printVec3(position)).c_str());
   ImGui::Text("Rotation");
-  ImGui::Text("Scale");
+  ImGui::Text("%s", ("Scale" + printVec3(scale)).c_str());
   ImGui::Text("Materials");
   ImGui::End();
 }
 
 void Model::UpdateShaderTransforms(Camera *camera) {
+  this->UpdateShaderTransforms(camera, this->shader);
+}
+
+void Model::UpdateShaderTransforms(Camera *camera, Shader *shader) {
   if (!shader) {
     std::cerr << "No Shader to update!" << std::endl;
     return;
@@ -210,6 +260,8 @@ void Model::UpdateShaderTransforms(Camera *camera) {
   modelMat = glm::scale(modelMat, scale);
   shader->setMatrix("model", modelMat);
   shader->setMatrix("view", camera->view);
+  shader->setFloat("nearPlane", camera->nearPlane);
+  shader->setFloat("farPlane", camera->farPlane);
   shader->setVec3("viewPos", camera->cameraPos);
   shader->setMatrix("projection", camera->projection);
 }
