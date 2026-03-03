@@ -105,7 +105,7 @@ int main() {
   Camera::InitCallbacks(window);
 
   cout << "Before UV Load: " << uvTexture << " ";
-  uvTexture = loadAndSetupImage("uvMap.png", false);
+  uvTexture = loadAndSetupImage("textures/uvmap.png", false);
   cout << "=> " << uvTexture << endl;
   // Imgui Context init:
   IMGUI_CHECKVERSION();
@@ -129,7 +129,7 @@ int main() {
   // RenderLoop:
   bool pointLightsOn = true;
   bool prevPointLightsOn = false;
-  Model backpackModel("Sponza/Sponza.obj");
+  Model backpackModel("models/Sponza/Sponza.obj");
   backpackModel.scale = {0.02, 0.02, 0.02};
   backpackModel.shader = &lightingShader;
   float background[3] = {0.2f, 0.2f, 0.2f};
@@ -338,6 +338,8 @@ GLFWwindow *setupWindow() {
   return window;
 }
 
+// Handles keyboard input each frame. Keys 7/8 toggle cursor visibility,
+// keys 9/0 toggle camera control, ESC closes the window.
 void processInput(GLFWwindow *window) {
   if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
     glfwSetWindowShouldClose(window, 1);

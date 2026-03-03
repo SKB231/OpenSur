@@ -154,6 +154,9 @@ Mesh Model::processMesh(aiMesh *mesh, const aiScene *scene) {
   return Mesh(move(vertices), move(indices), move(textures), base);
 }
 
+// Extracts textures of a given type from an Assimp material, building the full
+// path from the model's directory. Skips textures already in loadedTextures to
+// avoid uploading the same image to the GPU twice.
 vector<Texture> Model::loadMaterialTextures(aiMaterial *mat, aiTextureType type,
                                             string typeName) {
   vector<Texture> textures;
@@ -245,6 +248,9 @@ void Model::DisplayWindow() {
   ImGui::End();
 }
 
+// Pushes model/view/projection matrices and camera uniforms to the shader.
+// The no-arg overload uses the model's own assigned shader; the two-arg form
+// is used internally when rendering the outline pass with a different shader.
 void Model::UpdateShaderTransforms(Camera *camera) {
   this->UpdateShaderTransforms(camera, this->shader);
 }

@@ -3,6 +3,6 @@
 	url = https://github.com/ocornut/imgui.git
 	branch = docking
 [submodule "Sponza"]
-	path = Sponza
+	path = models/Sponza
 	url = https://github.com/jimmiebergmann/Sponza
 	branch = master
