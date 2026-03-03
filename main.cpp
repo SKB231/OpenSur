@@ -18,7 +18,7 @@
 #include <string>
 #define STB_IMAGE_IMPLEMENTATION
 #include <Lights.cpp>
-#include <Model/model.hpp>
+#include <Model/Model.hpp>
 #include <format>
 #include <imgui/backends/imgui_impl_glfw.h>
 #include <imgui/backends/imgui_impl_opengl3.h>
