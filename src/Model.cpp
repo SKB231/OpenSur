@@ -3,7 +3,7 @@
 #include "assimp/scene.h"
 #include "shader/shader.hpp"
 #include <MacTypes.h>
-#include <Model/model.hpp>
+#include <Model/Model.hpp>
 #include <camera/camera.hpp>
 #include <glm/ext/matrix_transform.hpp>
 #include <imgui/imgui.h>
